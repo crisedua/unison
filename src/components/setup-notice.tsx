@@ -1,13 +1,15 @@
 import { getTranslations } from "next-intl/server";
 import { Logo } from "@/components/logo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { supabaseKey, supabaseUrl } from "@/lib/supabase/env";
 
 type Props = { kind: "env"; missing: string[] } | { kind: "database"; message: string };
 
-const REQUIRED_ENV = ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"] as const;
-
 export function missingRequiredEnv() {
-  return REQUIRED_ENV.filter((key) => !process.env[key]);
+  const missing: string[] = [];
+  if (!supabaseUrl) missing.push("NEXT_PUBLIC_SUPABASE_URL");
+  if (!supabaseKey) missing.push("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY");
+  return missing;
 }
 
 /** Shown instead of the app until the keys and database are set up. */
