@@ -338,6 +338,12 @@
     "skipped": "{count, plural, one {# was already in Sales.} other {# were already in Sales.}}",
     "unknownName": "Name not available",
     "website": "Website",
+    "findEmails": "Get emails ({count})",
+    "findingEmails": "Getting emails…",
+    "emailConfirm": "Look up work emails for {count, plural, one {# person} other {# people}}? This uses about {credits} credits, whether or not an email is found.",
+    "emailsFound": "Found {found} of {total} emails.",
+    "noEmail": "No email found",
+    "exportCsv": "Export CSV",
     "errors": {
       "leads_not_configured": "Vibe Prospecting isn't connected yet. Add EXPLORIUM_API_KEY and restart the app.",
       "leads_key_invalid": "Explorium rejected the API key. Check EXPLORIUM_API_KEY.",

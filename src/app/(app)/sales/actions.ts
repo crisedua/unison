@@ -9,8 +9,15 @@ import { getReadyContext } from "@/lib/context";
 import type { CompileError } from "@/lib/engine/run";
 import { compileEmailCampaign, compileSalesOutput } from "@/lib/engine/sales";
 import { CONTENT_LANGUAGES } from "@/lib/languages";
-import { getCredits, LeadsError, searchProspects, type Credits, type LeadsErrorCode } from "@/lib/leads/explorium";
-import { hasAnyFilter, leadSchema, leadSearchSchema, type Lead } from "@/lib/leads/schema";
+import {
+  findEmails,
+  getCredits,
+  LeadsError,
+  searchProspects,
+  type Credits,
+  type LeadsErrorCode,
+} from "@/lib/leads/explorium";
+import { EMAIL_LOOKUP_MAX, hasAnyFilter, leadSchema, leadSearchSchema, type Lead } from "@/lib/leads/schema";
 import { CAMPAIGN_TYPE, campaignRequirements, MAX_CAMPAIGN_PROSPECTS } from "@/lib/sales/campaign";
 import { loadOpportunitiesByIds, loadOpportunity, loadOpportunityNotes } from "@/lib/sales/queries";
 import {
@@ -192,11 +199,37 @@ export async function searchLeads(raw: z.input<typeof leadSearchSchema>): Promis
   }
 }
 
+export type EmailLookupResult =
+  | { ok: true; emails: Record<string, string>; credits: Credits | null }
+  | { ok: false; error: { code: LeadsErrorCode | "invalid_input" | "not_ready" } };
+
+/** Looks up work emails for the ticked people. Costs credits per person, found or not. */
+export async function lookupLeadEmails(ids: string[]): Promise<EmailLookupResult> {
+  const ctx = await getReadyContext();
+  if (!ctx?.activeBrand) return { ok: false, error: { code: "not_ready" } };
+  const parsed = z.array(z.string().regex(/^[a-f0-9]{8,80}$/i)).min(1).max(EMAIL_LOOKUP_MAX).safeParse([...new Set(ids)]);
+  if (!parsed.success) return { ok: false, error: { code: "invalid_input" } };
+
+  try {
+    const emails = await findEmails(parsed.data);
+    const credits = await getCredits().catch(() => null);
+    return { ok: true, emails: Object.fromEntries(emails), credits };
+  } catch (error) {
+    if (error instanceof LeadsError) {
+      if (error.code !== "leads_not_configured") console.error("[lookupLeadEmails]", error.message);
+      return { ok: false, error: { code: error.code } };
+    }
+    console.error("[lookupLeadEmails]", error);
+    return { ok: false, error: { code: "leads_failed" } };
+  }
+}
+
 const dedupeKey = (company: string, contact: string) => `${company.trim().toLowerCase()}|${contact.trim().toLowerCase()}`;
 
 /** The first note on an opportunity created from a lead: where it came from and how to reach them. */
 function leadNote(lead: Lead) {
   return [
+    lead.email && `Email: ${lead.email}`,
     lead.linkedin && `LinkedIn: ${lead.linkedin}`,
     lead.website && `Website: ${lead.website}`,
     lead.location && `Location: ${lead.location}`,

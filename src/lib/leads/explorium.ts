@@ -154,7 +154,64 @@ export async function searchProspects(search: LeadSearch): Promise<{ leads: Lead
       website: (p.company_website ?? "").slice(0, 300),
       linkedin: (p.linkedin ?? "").slice(0, 300),
       location: [p.city, p.region_name, p.country_name].filter(Boolean).join(", ").slice(0, 200),
+      email: "",
     };
   });
   return { leads, total: parsed.data.total_results ?? null };
+}
+
+// ---------------------------------------------------------------------------
+// Email lookup (contact information enrichment)
+// ---------------------------------------------------------------------------
+
+const contactResponseSchema = z
+  .object({
+    data: z
+      .array(
+        z
+          .object({
+            prospect_id: z.string(),
+            data: z
+              .object({
+                professional_email: z.string().nullish(),
+                professional_email_status: z.string().nullish(),
+              })
+              .loose()
+              .nullish(),
+          })
+          .loose(),
+      )
+      .default([]),
+  })
+  .loose();
+
+/**
+ * Work email for each prospect id, in batches of 50. Explorium charges per
+ * person looked up, found or not. Emails it marks invalid are dropped.
+ */
+export async function findEmails(ids: readonly string[]): Promise<Map<string, string>> {
+  const emails = new Map<string, string>();
+  for (let i = 0; i < ids.length; i += 50) {
+    const batch = ids.slice(i, i + 50);
+    let raw: unknown;
+    try {
+      raw = await call("/prospects/contact_information/enrich", {
+        method: "POST",
+        body: { prospect_ids: batch, parameters: { contact_types: ["email"] } },
+      });
+    } catch (error) {
+      // Keep what earlier batches found rather than losing credits already spent.
+      if (i > 0) break;
+      throw error;
+    }
+    const parsed = contactResponseSchema.safeParse(raw);
+    if (!parsed.success) throw new LeadsError("leads_failed", "unexpected contact response shape");
+    for (const row of parsed.data.data) {
+      const email = row.data?.professional_email?.trim() ?? "";
+      if (email.includes("@") && row.data?.professional_email_status !== "invalid") {
+        emails.set(row.prospect_id, email.slice(0, 320));
+      }
+    }
+  }
+  return emails;
 }

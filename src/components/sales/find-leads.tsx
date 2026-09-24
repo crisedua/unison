@@ -1,10 +1,15 @@
 "use client";
 
-import { ExternalLink, Loader2, Search, TriangleAlert, UserPlus } from "lucide-react";
+import { AtSign, ExternalLink, FileDown, Loader2, Search, TriangleAlert, UserPlus } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { addLeadsAsOpportunities, searchLeads, type LeadSearchResult } from "@/app/(app)/sales/actions";
+import {
+  addLeadsAsOpportunities,
+  lookupLeadEmails,
+  searchLeads,
+  type LeadSearchResult,
+} from "@/app/(app)/sales/actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,13 +20,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { Credits } from "@/lib/leads/explorium";
 import {
   COMPANY_SIZES,
+  EMAIL_LOOKUP_CREDITS,
+  EMAIL_LOOKUP_MAX,
   JOB_LEVELS,
   LEAD_COUNTRIES,
+  leadsToCsv,
   RESULT_COUNTS,
   toUrl,
   type Lead,
   type LeadSearch,
 } from "@/lib/leads/schema";
+
+function downloadCsv(filename: string, csv: string) {
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
 type Props = {
   configured: boolean;
@@ -52,8 +69,11 @@ export function FindLeads({ configured, credits: initialCredits, onAdded }: Prop
   const [result, setResult] = useState<LeadSearchResult | null>(null);
   const [credits, setCredits] = useState(initialCredits);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Ids already looked up (found or not), so nobody is paid for twice.
+  const [checked, setChecked] = useState<Set<string>>(new Set());
   const [searching, startSearch] = useTransition();
   const [adding, startAdd] = useTransition();
+  const [lookingUp, startLookup] = useTransition();
 
   const countryNames = useMemo(() => new Intl.DisplayNames([locale], { type: "region" }), [locale]);
   const countries = useMemo(
@@ -66,6 +86,34 @@ export function FindLeads({ configured, credits: initialCredits, onAdded }: Prop
 
   const leads = result?.ok ? result.leads : [];
   const selectedLeads = leads.filter((lead) => selected.has(lead.id));
+  const toLookUp = selectedLeads.filter((lead) => !checked.has(lead.id)).slice(0, EMAIL_LOOKUP_MAX);
+
+  function lookUpEmails() {
+    if (toLookUp.length === 0) return;
+    const cost = toLookUp.length * EMAIL_LOOKUP_CREDITS;
+    if (!window.confirm(t("emailConfirm", { count: toLookUp.length, credits: cost }))) return;
+    const ids = toLookUp.map((lead) => lead.id);
+    startLookup(async () => {
+      const outcome = await lookupLeadEmails(ids);
+      if (!outcome.ok) {
+        toast.error(t(`errors.${outcome.error.code}`));
+        return;
+      }
+      setChecked((prev) => new Set([...prev, ...ids]));
+      setResult((prev) =>
+        prev?.ok
+          ? { ...prev, leads: prev.leads.map((lead) => ({ ...lead, email: outcome.emails[lead.id] ?? lead.email })) }
+          : prev,
+      );
+      if (outcome.credits) setCredits(outcome.credits);
+      toast.success(t("emailsFound", { found: Object.keys(outcome.emails).length, total: ids.length }));
+    });
+  }
+
+  function exportCsv() {
+    const rows = selectedLeads.length > 0 ? selectedLeads : leads;
+    downloadCsv(`prospects-${new Date().toISOString().slice(0, 10)}.csv`, leadsToCsv(rows));
+  }
 
   function runSearch(event: React.FormEvent) {
     event.preventDefault();
@@ -262,14 +310,22 @@ export function FindLeads({ configured, credits: initialCredits, onAdded }: Prop
                 {result.creditsUsed !== null && ` ${t("used", { count: result.creditsUsed })}`}
               </p>
             </div>
-            <div className="flex items-center gap-3">
-              <label className="flex items-center gap-2 text-sm">
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="mr-1 flex items-center gap-2 text-sm">
                 <Checkbox
                   checked={selected.size === leads.length}
                   onCheckedChange={(on) => setSelected(on === true ? new Set(leads.map((l) => l.id)) : new Set())}
                 />
                 {t("selectAll")}
               </label>
+              <Button variant="outline" onClick={lookUpEmails} disabled={lookingUp || toLookUp.length === 0}>
+                {lookingUp ? <Loader2 className="animate-spin" /> : <AtSign />}
+                {lookingUp ? t("findingEmails") : t("findEmails", { count: toLookUp.length })}
+              </Button>
+              <Button variant="outline" onClick={exportCsv}>
+                <FileDown />
+                {t("exportCsv")}
+              </Button>
               <Button onClick={addSelected} disabled={adding || selectedLeads.length === 0}>
                 {adding ? <Loader2 className="animate-spin" /> : <UserPlus />}
                 {adding ? t("adding") : t("addSelected", { count: selectedLeads.length })}
@@ -282,6 +338,7 @@ export function FindLeads({ configured, credits: initialCredits, onAdded }: Prop
               <LeadRow
                 key={lead.id}
                 lead={lead}
+                emailChecked={checked.has(lead.id)}
                 checked={selected.has(lead.id)}
                 onCheckedChange={(on) => {
                   const next = new Set(selected);
@@ -300,10 +357,12 @@ export function FindLeads({ configured, credits: initialCredits, onAdded }: Prop
 
 function LeadRow({
   lead,
+  emailChecked,
   checked,
   onCheckedChange,
 }: {
   lead: Lead;
+  emailChecked: boolean;
   checked: boolean;
   onCheckedChange: (on: boolean) => void;
 }) {
@@ -317,6 +376,11 @@ function LeadRow({
           {[lead.jobTitle, lead.company].filter(Boolean).join(" · ")}
         </p>
         {lead.location && <p className="truncate text-xs text-muted-foreground">{lead.location}</p>}
+        {lead.email ? (
+          <p className="text-sm break-all">{lead.email}</p>
+        ) : (
+          emailChecked && <p className="text-xs text-muted-foreground">{t("noEmail")}</p>
+        )}
       </div>
       <div className="flex shrink-0 items-center gap-3 text-xs">
         {lead.website && (

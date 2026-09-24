@@ -45,8 +45,31 @@ export const leadSchema = z.object({
   website: z.string().max(300),
   linkedin: z.string().max(300),
   location: z.string().max(200),
+  /** Filled in by the email lookup; empty until then or when none was found. */
+  email: z.string().max(320).default(""),
 });
 export type Lead = z.infer<typeof leadSchema>;
+
+/** Explorium charges this many credits per person for an email lookup, found or not. */
+export const EMAIL_LOOKUP_CREDITS = 2;
+export const EMAIL_LOOKUP_MAX = 50;
+
+function csvCell(value: string) {
+  return /[",\n\r]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+}
+
+/**
+ * CSV for importing into an email tool such as Hostinger Reach. Starts with a
+ * UTF-8 byte order mark so Excel shows accents correctly.
+ */
+export function leadsToCsv(leads: readonly Lead[]) {
+  const header = ["Email", "First name", "Last name", "Job title", "Company", "Website", "LinkedIn", "Location"];
+  const rows = leads.map((lead) => {
+    const [first = "", ...rest] = lead.name.trim().split(/\s+/);
+    return [lead.email, first, rest.join(" "), lead.jobTitle, lead.company, lead.website, lead.linkedin, lead.location];
+  });
+  return `﻿${[header, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n")}\r\n`;
+}
 
 /** Adds https:// when the API returns a bare domain. */
 export function toUrl(value: string) {
