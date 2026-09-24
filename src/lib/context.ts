@@ -66,9 +66,13 @@ async function sharedWorkspace(supabase: Supabase): Promise<Workspace> {
     .insert({ workspace_id: workspace.id, user_id: owner, role: "owner" });
   if (member.error) throw new Error(member.error.message);
 
-  // Two first requests at once can both create one; everyone uses the oldest.
+  // Two first requests at once can both create one: keep the oldest, remove ours if it lost.
   const oldest = await firstWorkspace(supabase);
-  return oldest.data ?? workspace;
+  if (oldest.data && oldest.data.id !== workspace.id) {
+    await supabase.from("unison_workspaces").delete().eq("id", workspace.id);
+    return oldest.data;
+  }
+  return workspace;
 }
 
 /**
