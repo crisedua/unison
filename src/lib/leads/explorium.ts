@@ -4,7 +4,7 @@ import "server-only";
 import { z } from "zod";
 import type { Lead, LeadSearch } from "./schema";
 
-const BASE_URL = "https://api.explorium.ai/v2";
+const BASE_URL = "https://api.explorium.ai";
 
 export function isLeadsConfigured() {
   return Boolean(process.env.EXPLORIUM_API_KEY?.trim());
@@ -22,11 +22,14 @@ export class LeadsError extends Error {
   constructor(
     readonly code: LeadsErrorCode,
     detail?: string,
+    /** HTTP status Explorium answered with, when it answered. */
+    readonly status?: number,
   ) {
     super(detail ? `${code}: ${detail}` : code);
   }
 }
 
+/** `path` includes the API version, e.g. "/v2/credits". */
 async function call<T>(path: string, init?: { method?: "GET" | "POST"; body?: unknown }): Promise<T> {
   const key = process.env.EXPLORIUM_API_KEY?.trim();
   if (!key) throw new LeadsError("leads_not_configured");
@@ -46,11 +49,32 @@ async function call<T>(path: string, init?: { method?: "GET" | "POST"; body?: un
 
   if (response.ok) return (await response.json()) as T;
 
-  const body = (await response.text().catch(() => "")).slice(0, 300);
-  if (response.status === 401) throw new LeadsError("leads_key_invalid", body);
-  if (response.status === 403) throw new LeadsError(/credit/i.test(body) ? "leads_no_credits" : "leads_key_invalid", body);
-  if (response.status === 429) throw new LeadsError("leads_rate_limited", body);
-  throw new LeadsError("leads_failed", `${response.status} ${body}`);
+  const status = response.status;
+  const body = `${init?.method ?? "GET"} ${path} → ${status} ${(await response.text().catch(() => "")).slice(0, 500)}`;
+  if (status === 401) throw new LeadsError("leads_key_invalid", body, status);
+  if (status === 402) throw new LeadsError("leads_no_credits", body, status);
+  if (status === 403) throw new LeadsError(/credit/i.test(body) ? "leads_no_credits" : "leads_key_invalid", body, status);
+  if (status === 429) throw new LeadsError("leads_rate_limited", body, status);
+  throw new LeadsError("leads_failed", body, status);
+}
+
+/**
+ * Calls the v2 endpoint and, if Explorium answers with a server error or
+ * "not found", repeats the request on the older v1 endpoint. v2 search has
+ * returned 503 for some accounts while v1 works.
+ */
+async function callWithV1Fallback<T>(
+  v2: { path: string; body: unknown },
+  v1: { path: string; body: unknown },
+): Promise<T> {
+  try {
+    return await call<T>(v2.path, { method: "POST", body: v2.body });
+  } catch (error) {
+    const status = error instanceof LeadsError ? error.status : undefined;
+    if (status === undefined || (status < 500 && status !== 404 && status !== 405)) throw error;
+    console.warn("[explorium] v2 failed, retrying on v1:", (error as Error).message);
+    return call<T>(v1.path, { method: "POST", body: v1.body });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -64,7 +88,7 @@ const creditsSchema = z
 export type Credits = { allocated: number; remaining: number; accountType: "trial" | "paid" };
 
 export async function getCredits(): Promise<Credits> {
-  const raw = creditsSchema.parse(await call("/credits"));
+  const raw = creditsSchema.parse(await call("/v2/credits"));
   return {
     allocated: raw.allocated_credits,
     remaining: raw.remaining_credits,
@@ -80,15 +104,20 @@ const suggestionsSchema = z.array(z.object({ value: z.string() }).loose());
 
 /** Free text → the standardized values the filters require. Empty when nothing matches. */
 async function standardize(field: "job_title" | "linkedin_category", query: string, max = 3): Promise<string[]> {
-  try {
-    const raw = await call<unknown>(`/autocomplete?field=${field}&query=${encodeURIComponent(query)}`);
-    const parsed = suggestionsSchema.safeParse(raw);
-    if (!parsed.success) return [];
-    return [...new Set(parsed.data.map((s) => s.value))].slice(0, max);
-  } catch (error) {
-    if (error instanceof LeadsError && error.code !== "leads_failed") throw error;
-    return [];
+  const query_ = `field=${field}&query=${encodeURIComponent(query)}`;
+  for (const version of ["v2", "v1"]) {
+    try {
+      const raw = await call<unknown>(`/${version}/autocomplete?${query_}`);
+      const parsed = suggestionsSchema.safeParse(raw);
+      if (!parsed.success) return [];
+      return [...new Set(parsed.data.map((s) => s.value))].slice(0, max);
+    } catch (error) {
+      if (error instanceof LeadsError && error.code !== "leads_failed") throw error;
+      console.warn("[explorium autocomplete]", (error as Error).message);
+    }
   }
+  // Without a standardized value, the caller falls back to the raw text.
+  return [];
 }
 
 const prospectSchema = z
@@ -137,10 +166,11 @@ export async function searchProspects(search: LeadSearch): Promise<{ leads: Lead
   if (search.companySizes.length) filters.company_size = { values: search.companySizes };
   if (search.country) filters.company_country_code = { values: [search.country] };
 
-  const raw = await call<unknown>("/prospects", {
-    method: "POST",
-    body: { mode: "full", page: 1, page_size: search.count, filters },
-  });
+  const raw = await callWithV1Fallback<unknown>(
+    { path: "/v2/prospects", body: { mode: "full", page: 1, page_size: search.count, filters } },
+    // v1 also requires `size`, the total number of records the query may return.
+    { path: "/v1/prospects", body: { mode: "full", size: search.count, page: 1, page_size: search.count, filters } },
+  );
   const parsed = searchResponseSchema.safeParse(raw);
   if (!parsed.success) throw new LeadsError("leads_failed", "unexpected response shape");
 
@@ -175,6 +205,9 @@ const contactResponseSchema = z
               .object({
                 professional_email: z.string().nullish(),
                 professional_email_status: z.string().nullish(),
+                // v1 spells the field "professions_email" and may also list emails.
+                professions_email: z.string().nullish(),
+                emails: z.array(z.record(z.string(), z.unknown())).nullish(),
               })
               .loose()
               .nullish(),
@@ -194,11 +227,12 @@ export async function findEmails(ids: readonly string[]): Promise<Map<string, st
   for (let i = 0; i < ids.length; i += 50) {
     const batch = ids.slice(i, i + 50);
     let raw: unknown;
+    const body = { prospect_ids: batch, parameters: { contact_types: ["email"] } };
     try {
-      raw = await call("/prospects/contact_information/enrich", {
-        method: "POST",
-        body: { prospect_ids: batch, parameters: { contact_types: ["email"] } },
-      });
+      raw = await callWithV1Fallback(
+        { path: "/v2/prospects/contact_information/enrich", body },
+        { path: "/v1/prospects/contacts_information/bulk_enrich", body },
+      );
     } catch (error) {
       // Keep what earlier batches found rather than losing credits already spent.
       if (i > 0) break;
@@ -207,7 +241,10 @@ export async function findEmails(ids: readonly string[]): Promise<Map<string, st
     const parsed = contactResponseSchema.safeParse(raw);
     if (!parsed.success) throw new LeadsError("leads_failed", "unexpected contact response shape");
     for (const row of parsed.data.data) {
-      const email = row.data?.professional_email?.trim() ?? "";
+      const listed = row.data?.emails
+        ?.flatMap((entry) => Object.values(entry))
+        .find((value): value is string => typeof value === "string" && value.includes("@"));
+      const email = (row.data?.professional_email || row.data?.professions_email || listed || "").trim();
       if (email.includes("@") && row.data?.professional_email_status !== "invalid") {
         emails.set(row.prospect_id, email.slice(0, 320));
       }
