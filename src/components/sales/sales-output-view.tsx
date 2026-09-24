@@ -14,7 +14,7 @@ export type AnySalesOutput = {
 }[SalesOutputType];
 
 /** Plain text of an output, for copying, downloading and saving as a draft. */
-function useSalesText() {
+export function useSalesText() {
   const t = useTranslations("sales");
   const subjectLabel = useTranslations("result")("subject");
   const list = (items: string[]) => items.map((line) => `- ${line}`).join("\n");

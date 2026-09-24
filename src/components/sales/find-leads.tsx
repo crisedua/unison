@@ -1,10 +1,10 @@
 "use client";
 
 import { ExternalLink, Loader2, Search, TriangleAlert, UserPlus } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { addLeadsAsOpportunities, searchLeads, type LeadSearchResult } from "@/app/(app)/sales/actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -22,9 +22,13 @@ import {
   type Lead,
   type LeadSearch,
 } from "@/lib/leads/schema";
-import { addLeadsAsOpportunities, searchLeads, type LeadSearchResult } from "../actions";
 
-type Props = { configured: boolean; credits: Credits | null };
+type Props = {
+  configured: boolean;
+  credits: Credits | null;
+  /** Called with the ids of the opportunities that were just created. */
+  onAdded: (ids: string[]) => void;
+};
 
 const EMPTY: LeadSearch = {
   jobTitles: "",
@@ -40,10 +44,9 @@ function toggle<T>(list: T[], value: T, on: boolean) {
   return on ? [...new Set([...list, value])] : list.filter((v) => v !== value);
 }
 
-export function FindLeads({ configured, credits: initialCredits }: Props) {
+export function FindLeads({ configured, credits: initialCredits, onAdded }: Props) {
   const t = useTranslations("leads");
   const locale = useLocale();
-  const router = useRouter();
 
   const [search, setSearch] = useState<LeadSearch>(EMPTY);
   const [result, setResult] = useState<LeadSearchResult | null>(null);
@@ -89,12 +92,16 @@ export function FindLeads({ configured, credits: initialCredits }: Props) {
           .filter(Boolean)
           .join(" "),
       );
-      router.push("/sales");
+      // Drop the people that were added so the list shows what's left to review.
+      const addedIds = new Set(selectedLeads.map((lead) => lead.id));
+      setResult((prev) => (prev?.ok ? { ...prev, leads: prev.leads.filter((lead) => !addedIds.has(lead.id)) } : prev));
+      setSelected(new Set());
+      onAdded(outcome.ids);
     });
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {!configured && (
         <Alert className="border-warning-foreground/20 bg-warning text-warning-foreground">
           <TriangleAlert />
@@ -240,7 +247,7 @@ export function FindLeads({ configured, credits: initialCredits }: Props) {
       )}
 
       {result?.ok && leads.length === 0 && (
-        <p className="rounded-xl border border-dashed px-6 py-14 text-center text-sm text-muted-foreground">
+        <p className="rounded-xl border border-dashed px-6 py-10 text-center text-sm text-muted-foreground">
           {t("noResults")}
         </p>
       )}
@@ -249,7 +256,7 @@ export function FindLeads({ configured, credits: initialCredits }: Props) {
         <section className="space-y-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-lg font-bold">{t("results", { count: leads.length })}</h2>
+              <h3 className="font-bold">{t("results", { count: leads.length })}</h3>
               <p className="text-sm text-muted-foreground">
                 {t("resultsHint")}
                 {result.creditsUsed !== null && ` ${t("used", { count: result.creditsUsed })}`}

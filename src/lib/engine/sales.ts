@@ -1,5 +1,6 @@
 import "server-only";
 import type { ContentLanguage } from "@/lib/languages";
+import { campaignSchema, type EmailCampaign } from "@/lib/sales/campaign";
 import { salesSchemas, type SalesOutput, type SalesOutputType } from "@/lib/sales/schema";
 import type { Brand, BrandDocument, Opportunity, OpportunityNote } from "@/lib/types";
 import { buildBrainBlock, languageLine } from "./prompt";
@@ -76,5 +77,49 @@ export async function compileSalesOutput<T extends SalesOutputType>(args: {
     task,
     schema: salesSchemas[args.type],
     schemaName: args.type,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Email campaign: one sequence for a group, personalized with merge fields
+// ---------------------------------------------------------------------------
+
+const CAMPAIGN_TASK = [
+  "# TASK: EMAIL CAMPAIGN FOR A GROUP OF PROSPECTS",
+  "Write ONE sequence of 3 short cold emails (day 0, around day 3, around day 7) that will go to every prospect listed below. The same text is sent to all of them, so write for what they have in common: their roles, industries and company sizes.",
+  "- Personalize only through merge fields, written exactly like this: {{first_name}}, {{company}}, {{role}}. Use {{first_name}} in the greeting of every email and {{company}} at least once in the sequence. Use {{role}} only if every prospect listed has a role. Never write a real prospect's name or company into the text.",
+  "- Cold outreach: they have never heard from us. No fake familiarity, and no claims about their company beyond what the list supports.",
+  "- One ask per email, plain text, under 120 words. Follow-ups add something new instead of 'just checking in'.",
+].join("\n");
+
+function prospectsBlock(prospects: Opportunity[]) {
+  const lines = prospects.map(
+    (p) => `- ${p.contact_name || "(no name)"} — ${p.contact_role || "(no role)"} — ${p.company_name}`,
+  );
+  return `# PROSPECTS (${prospects.length})\n${lines.join("\n")}`;
+}
+
+export async function compileEmailCampaign(args: {
+  brand: Brand;
+  documents: BrandDocument[];
+  prospects: Opportunity[];
+  focus: string;
+  language: ContentLanguage;
+}): Promise<RunResult<EmailCampaign>> {
+  const brain = buildBrainBlock(args.brand, args.documents);
+  const task = [
+    CAMPAIGN_TASK,
+    prospectsBlock(args.prospects),
+    ["## Settings", languageLine(args.language), args.focus.trim() && `- Extra note from the user: ${args.focus.trim()}`]
+      .filter(Boolean)
+      .join("\n"),
+  ].join("\n\n");
+
+  return runStructured<EmailCampaign>({
+    brandId: args.brand.id,
+    brain,
+    task,
+    schema: campaignSchema,
+    schemaName: "email_campaign",
   });
 }

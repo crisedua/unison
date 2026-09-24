@@ -7,11 +7,12 @@ import { missingFacts } from "@/lib/brain/facts";
 import { loadBrainContext } from "@/lib/brain/queries";
 import { getReadyContext } from "@/lib/context";
 import type { CompileError } from "@/lib/engine/run";
-import { compileSalesOutput } from "@/lib/engine/sales";
+import { compileEmailCampaign, compileSalesOutput } from "@/lib/engine/sales";
 import { CONTENT_LANGUAGES } from "@/lib/languages";
 import { getCredits, LeadsError, searchProspects, type Credits, type LeadsErrorCode } from "@/lib/leads/explorium";
 import { hasAnyFilter, leadSchema, leadSearchSchema, type Lead } from "@/lib/leads/schema";
-import { loadOpportunity, loadOpportunityNotes } from "@/lib/sales/queries";
+import { CAMPAIGN_TYPE, campaignRequirements, MAX_CAMPAIGN_PROSPECTS } from "@/lib/sales/campaign";
+import { loadOpportunitiesByIds, loadOpportunity, loadOpportunityNotes } from "@/lib/sales/queries";
 import {
   OPPORTUNITY_STAGES,
   salesRequirements,
@@ -205,7 +206,9 @@ function leadNote(lead: Lead) {
     .join("\n");
 }
 
-export type AddLeadsResult = { ok: true; added: number; skipped: number } | { ok: false; error: "add_failed" | "invalid_input" };
+export type AddLeadsResult =
+  | { ok: true; added: number; skipped: number; ids: string[] }
+  | { ok: false; error: "add_failed" | "invalid_input" };
 
 /** Turns the ticked leads into opportunities, skipping people already in Sales for this brand. */
 export async function addLeadsAsOpportunities(raw: unknown): Promise<AddLeadsResult> {
@@ -234,7 +237,7 @@ export async function addLeadsAsOpportunities(raw: unknown): Promise<AddLeadsRes
     if (seen.has(key) || byKey.has(key)) continue;
     byKey.set(key, { ...lead, company });
   }
-  if (byKey.size === 0) return { ok: true, added: 0, skipped: parsed.data.length };
+  if (byKey.size === 0) return { ok: true, added: 0, skipped: parsed.data.length, ids: [] };
 
   const rows = [...byKey.values()].map((lead) => ({
     company_name: lead.company,
@@ -266,7 +269,88 @@ export async function addLeadsAsOpportunities(raw: unknown): Promise<AddLeadsRes
   }
 
   revalidatePath("/sales");
-  return { ok: true, added: data.length, skipped: parsed.data.length - data.length };
+  return {
+    ok: true,
+    added: data.length,
+    skipped: parsed.data.length - data.length,
+    ids: data.map((row) => row.id as string),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Email campaign for a group of prospects
+// ---------------------------------------------------------------------------
+
+const campaignRequestSchema = z.object({
+  opportunityIds: z.array(z.uuid()).min(1).max(MAX_CAMPAIGN_PROSPECTS),
+  language: z.enum(CONTENT_LANGUAGES),
+  focus: z.string().max(500),
+});
+
+export type CampaignResult =
+  | { ok: true; generationId: string }
+  | { ok: false; error: CompileError | { code: "invalid_input" | "not_found" | "save_failed" } };
+
+/** One 3-email sequence for every selected prospect, saved once and shown per person. */
+export async function writeEmailCampaign(raw: z.input<typeof campaignRequestSchema>): Promise<CampaignResult> {
+  const ctx = await getReadyContext();
+  const parsed = campaignRequestSchema.safeParse(raw);
+  if (!ctx?.activeBrand) return { ok: false, error: { code: "not_found" } };
+  if (!parsed.success) return { ok: false, error: { code: "invalid_input" } };
+  const { opportunityIds, language, focus } = parsed.data;
+  const brandId = ctx.activeBrand.id;
+  const supabase = await createClient();
+
+  const [prospects, brain] = await Promise.all([
+    loadOpportunitiesByIds(supabase, brandId, [...new Set(opportunityIds)]),
+    loadBrainContext(supabase, brandId),
+  ]);
+  if (!brain || prospects.length === 0) return { ok: false, error: { code: "not_found" } };
+
+  const missing = missingFacts(brain.status, campaignRequirements);
+  if (missing.length > 0) return { ok: false, error: { code: "missing_facts", missing } };
+
+  const result = await compileEmailCampaign({
+    brand: brain.brand,
+    documents: brain.documents,
+    prospects,
+    focus,
+    language,
+  });
+  if (!result.ok) return result;
+
+  const factsUsed = [...new Set(result.output.facts_used)].filter((key) => brain.status[key]);
+  const output = { ...result.output, facts_used: factsUsed };
+
+  const { data, error } = await supabase
+    .from("unison_generations")
+    .insert({
+      brand_id: brandId,
+      workspace_id: ctx.workspaceId,
+      studio: "sales",
+      opportunity_id: null,
+      title: output.title.slice(0, 200) || `Email campaign (${prospects.length})`,
+      input: { type: CAMPAIGN_TYPE, language, focus, opportunity_ids: prospects.map((p) => p.id) },
+      output,
+      facts_used: factsUsed,
+      language,
+      model: result.model,
+      input_tokens: result.usage.inputTokens,
+      cached_tokens: result.usage.cachedTokens,
+      output_tokens: result.usage.outputTokens,
+      created_by: ctx.userId,
+    })
+    .select("id")
+    .single();
+  if (error || !data) {
+    console.error("[writeEmailCampaign] could not save:", error?.message);
+    return { ok: false, error: { code: "save_failed" } };
+  }
+
+  revalidatePath("/sales");
+  revalidatePath("/library");
+  for (const p of prospects) revalidatePath(`/sales/${p.id}`);
+  return { ok: true, generationId: data.id as string };
 }
 
 // ---------------------------------------------------------------------------

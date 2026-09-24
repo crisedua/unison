@@ -5,6 +5,6 @@ export function generationHref(g: Pick<GenerationRow, "id" | "studio" | "campaig
   if ((g.studio === "campaign" || g.studio === "results") && g.campaign_id) {
     return `/campaigns/${g.campaign_id}${g.studio === "results" ? "#results" : ""}`;
   }
-  if (g.studio === "sales" && g.opportunity_id) return `/sales/${g.opportunity_id}`;
+  if (g.studio === "sales") return g.opportunity_id ? `/sales/${g.opportunity_id}` : `/sales/campaign/${g.id}`;
   return `/library/${g.id}`;
 }
