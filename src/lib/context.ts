@@ -1,7 +1,8 @@
 import "server-only";
 import { cache } from "react";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
+import { SESSION_ERROR_HEADER } from "@/lib/supabase/proxy";
 import { createClient } from "@/lib/supabase/server";
 import type { BrandSummary } from "@/lib/types";
 
@@ -18,7 +19,7 @@ export type ReadyContext = {
 export type AppContext =
   | ReadyContext
   | { status: "env_missing" }
-  | { status: "no_session" }
+  | { status: "no_session"; message: string }
   | { status: "database_not_ready"; message: string };
 
 /**
@@ -32,7 +33,10 @@ export const getAppContext = cache(async (): Promise<AppContext> => {
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getClaims();
   const claims = auth?.claims;
-  if (!claims) return { status: "no_session" };
+  if (!claims) {
+    const reason = (await headers()).get(SESSION_ERROR_HEADER);
+    return { status: "no_session", message: reason ? decodeURIComponent(reason) : "No session" };
+  }
 
   const { data: workspaceId, error } = await supabase.rpc("unison_ensure_personal_workspace");
   if (error || typeof workspaceId !== "string") {

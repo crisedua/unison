@@ -6,7 +6,7 @@ import { supabaseKey, supabaseUrl } from "@/lib/supabase/env";
 type Props =
   | { kind: "env"; missing: string[] }
   | { kind: "database"; message: string }
-  | { kind: "anonymous" };
+  | { kind: "anonymous"; message: string };
 
 const COPY = {
   env: { title: "envTitle", body: "envBody" },
@@ -29,7 +29,7 @@ export async function SetupNotice(props: Props) {
       ? props.missing.map((key) => `${key}=`).join("\n")
       : props.kind === "database"
         ? "npm run db:migrate"
-        : "Authentication → Sign In / Providers → Allow anonymous sign-ins";
+        : "Authentication\n→ Sign In / Providers\n→ Allow anonymous sign-ins";
 
   return (
     <div className="bg-grid flex min-h-screen items-center justify-center p-6">
@@ -43,7 +43,7 @@ export async function SetupNotice(props: Props) {
         <CardContent className="space-y-4 px-6 leading-relaxed">
           <p>{t(COPY[props.kind].body)}</p>
           <pre className="overflow-x-auto rounded-lg bg-muted px-4 py-3 font-mono text-xs">{code}</pre>
-          {props.kind === "database" && (
+          {props.kind !== "env" && (
             <p className="text-xs text-muted-foreground">{t("details", { message: props.message })}</p>
           )}
           <p className="text-muted-foreground">{t("readme")}</p>
