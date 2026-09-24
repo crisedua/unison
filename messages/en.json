@@ -17,11 +17,9 @@
   },
   "setup": {
     "envTitle": "Almost ready: connect your accounts",
-    "envBody": "Add these keys to a file called .env.local in the project folder, then restart the app:",
+    "envBody": "Add these keys to the project's environment variables (in Vercel: Settings → Environment Variables, then redeploy; locally: .env.local, then restart). The secret key is in Supabase under Project Settings → API Keys:",
     "databaseTitle": "Almost ready: set up the database",
     "databaseBody": "Your keys work, but the database tables aren't there yet. Run this in the project folder, then reload:",
-    "anonymousTitle": "Almost ready: allow anonymous sessions",
-    "anonymousBody": "There's no login screen, so Supabase has to allow anonymous sessions. In the Supabase dashboard, turn on this setting, then reload:",
     "details": "Details: {message}",
     "readme": "Step-by-step instructions are in README.md."
   },

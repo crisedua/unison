@@ -17,11 +17,9 @@
   },
   "setup": {
     "envTitle": "Casi listo: conecta tus cuentas",
-    "envBody": "Agrega estas claves a un archivo llamado .env.local en la carpeta del proyecto y reinicia la app:",
+    "envBody": "Agrega estas claves a las variables de entorno del proyecto (en Vercel: Settings → Environment Variables y luego redeploy; en local: .env.local y reinicia). La clave secreta está en Supabase, en Project Settings → API Keys:",
     "databaseTitle": "Casi listo: prepara la base de datos",
     "databaseBody": "Tus claves funcionan, pero todavía faltan las tablas de la base de datos. Ejecuta esto en la carpeta del proyecto y recarga:",
-    "anonymousTitle": "Casi listo: permite sesiones anónimas",
-    "anonymousBody": "No hay pantalla de inicio de sesión, así que Supabase tiene que permitir sesiones anónimas. En el panel de Supabase activa esta opción y recarga:",
     "details": "Detalles: {message}",
     "readme": "Las instrucciones paso a paso están en README.md."
   },

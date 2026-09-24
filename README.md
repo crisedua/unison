@@ -4,7 +4,7 @@ Your company's memory for marketing and sales. Describe the business once in the
 
 ## What's built (phase 1)
 
-- **No login.** Each browser gets its own private workspace automatically (a Supabase anonymous session). Clearing the browser's cookies starts a new, empty workspace.
+- **No login.** Everyone who opens the app works in one shared workspace. Anyone with the URL can read and edit everything, so keep the URL private.
 - **Company Brain.**
   - Seven fields: what you do, audience, problem, positioning, offer, proof, and brand voice.
   - Notes and uploaded files (PDF, Word, TXT, Markdown).
@@ -25,12 +25,11 @@ Your company's memory for marketing and sales. Describe the business once in the
 
 1. Create a free project at [supabase.com](https://supabase.com). Save the database password you choose.
 2. Click **Connect** at the top of the dashboard.
-   - Under **App Frameworks → Next.js**, copy `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
-   - Both are also under Project Settings → API Keys.
+   - Copy the project URL. This is `NEXT_PUBLIC_SUPABASE_URL`.
+   - Under Project Settings → API Keys, copy the **secret** key (older projects: `service_role`). This is `SUPABASE_SECRET_KEY`. It stays on the server; never paste it into browser code.
 3. In the same **Connect** window, under **Connection string**, copy the **Session pooler** URI.
    - Replace `[YOUR-PASSWORD]` with your database password.
    - This is your `DATABASE_URL`.
-4. Go to **Authentication → Sign In / Providers** and turn on **Allow anonymous sign-ins**.
 
 ### 2. OpenAI (the writing)
 

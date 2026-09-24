@@ -1,7 +1,10 @@
-export const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-// Supabase calls the same client key "publishable" (new projects) or "anon" (older ones).
-export const supabaseKey =
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+import "server-only";
 
-/** False until the Supabase keys are added to .env.local. */
-export const hasSupabaseEnv = Boolean(supabaseUrl && supabaseKey);
+export const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? "";
+// Supabase calls the server key "secret" (new projects) or "service_role" (older ones).
+// It bypasses row-level security, so it must only ever be read on the server.
+export const supabaseSecretKey =
+  process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+
+/** False until the Supabase URL and secret key are set. */
+export const hasSupabaseEnv = Boolean(supabaseUrl && supabaseSecretKey);

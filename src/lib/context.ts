@@ -1,12 +1,15 @@
 import "server-only";
 import { cache } from "react";
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
-import { SESSION_ERROR_HEADER } from "@/lib/supabase/proxy";
 import { createClient } from "@/lib/supabase/server";
 import type { BrandSummary } from "@/lib/types";
 
 export const ACTIVE_BRAND_COOKIE = "active_brand";
+
+// Owner of the shared workspace when the database has none yet. Tables keep
+// a `created_by` that points at a Supabase user, so one is created for it.
+const OWNER_EMAIL = "owner@unison.example.com";
 
 export type ReadyContext = {
   status: "ready";
@@ -19,34 +22,74 @@ export type ReadyContext = {
 export type AppContext =
   | ReadyContext
   | { status: "env_missing" }
-  | { status: "no_session"; message: string }
   | { status: "database_not_ready"; message: string };
 
+type Supabase = Awaited<ReturnType<typeof createClient>>;
+type Workspace = { id: string; created_by: string };
+
+async function firstWorkspace(supabase: Supabase) {
+  return supabase
+    .from("unison_workspaces")
+    .select("id, created_by")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle<Workspace>();
+}
+
+async function ownerUserId(supabase: Supabase): Promise<string> {
+  const created = await supabase.auth.admin.createUser({ email: OWNER_EMAIL, email_confirm: true });
+  if (created.data.user) return created.data.user.id;
+
+  // Already created by an earlier request.
+  const { data, error } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+  const existing = data?.users.find((user) => user.email === OWNER_EMAIL);
+  if (!existing) throw new Error(created.error?.message ?? error?.message ?? "Couldn't create the owner user");
+  return existing.id;
+}
+
+/** The oldest workspace (so data from the old email login is kept), created on first use. */
+async function sharedWorkspace(supabase: Supabase): Promise<Workspace> {
+  const found = await firstWorkspace(supabase);
+  if (found.error) throw new Error(found.error.message);
+  if (found.data) return found.data;
+
+  const owner = await ownerUserId(supabase);
+  const { data: workspace, error } = await supabase
+    .from("unison_workspaces")
+    .insert({ name: "My workspace", created_by: owner })
+    .select("id, created_by")
+    .single<Workspace>();
+  if (error) throw new Error(error.message);
+
+  const member = await supabase
+    .from("unison_workspace_members")
+    .insert({ workspace_id: workspace.id, user_id: owner, role: "owner" });
+  if (member.error) throw new Error(member.error.message);
+
+  // Two first requests at once can both create one; everyone uses the oldest.
+  const oldest = await firstWorkspace(supabase);
+  return oldest.data ?? workspace;
+}
+
 /**
- * The visitor's anonymous session, their workspace and the brand they're
- * working on. The proxy creates the session; "no_session" means Supabase
- * refused it (anonymous sign-ins turned off). Cached per request.
+ * The shared workspace and the brand being worked on. There is no login:
+ * everyone who opens the app works in the same workspace. Cached per request.
  */
 export const getAppContext = cache(async (): Promise<AppContext> => {
   if (!hasSupabaseEnv) return { status: "env_missing" };
 
   const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getClaims();
-  const claims = auth?.claims;
-  if (!claims) {
-    const reason = (await headers()).get(SESSION_ERROR_HEADER);
-    return { status: "no_session", message: reason ? decodeURIComponent(reason) : "No session" };
-  }
-
-  const { data: workspaceId, error } = await supabase.rpc("unison_ensure_personal_workspace");
-  if (error || typeof workspaceId !== "string") {
-    return { status: "database_not_ready", message: error?.message ?? "No workspace" };
+  let workspace: Workspace;
+  try {
+    workspace = await sharedWorkspace(supabase);
+  } catch (error) {
+    return { status: "database_not_ready", message: error instanceof Error ? error.message : "No workspace" };
   }
 
   const { data: brands, error: brandsError } = await supabase
     .from("unison_brands")
     .select("id, name, content_language")
-    .eq("workspace_id", workspaceId)
+    .eq("workspace_id", workspace.id)
     .order("created_at", { ascending: true });
   if (brandsError) {
     return { status: "database_not_ready", message: brandsError.message };
@@ -58,8 +101,8 @@ export const getAppContext = cache(async (): Promise<AppContext> => {
 
   return {
     status: "ready",
-    userId: claims.sub,
-    workspaceId,
+    userId: workspace.created_by,
+    workspaceId: workspace.id,
     brands: list,
     activeBrand,
   };
