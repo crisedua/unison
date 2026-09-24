@@ -71,6 +71,7 @@ Open [http://localhost:3000](http://localhost:3000). You land straight in the Co
 | Product name | `src/config/site.ts` |
 | AI model | `OPENAI_MODEL` in `.env.local`. `gpt-6-sol` is the default; `gpt-6-astra` is the flagship at about 5× the cost |
 | How hard the model thinks | `OPENAI_REASONING_EFFORT` (`low` … `max`) in `.env.local` |
+| Lead search (Sales → Find leads) | `EXPLORIUM_API_KEY` in `.env.local`. Vibe Prospecting runs on Explorium's API; the key comes from the "Free API Key" button at explorium.ai. Each person found costs about one credit |
 | Interface text | `messages/en.json` and `messages/es.json`, then run `npm run check:i18n` to confirm both files have the same keys |
 | What the AI is told | `src/lib/engine/prompt.ts` |
 | Output formats (add one here) | `src/lib/engine/assets.ts`, plus its rules in `prompt.ts` |

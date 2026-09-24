@@ -9,6 +9,8 @@ import { getReadyContext } from "@/lib/context";
 import type { CompileError } from "@/lib/engine/run";
 import { compileSalesOutput } from "@/lib/engine/sales";
 import { CONTENT_LANGUAGES } from "@/lib/languages";
+import { getCredits, LeadsError, searchProspects, type Credits, type LeadsErrorCode } from "@/lib/leads/explorium";
+import { hasAnyFilter, leadSchema, leadSearchSchema, type Lead } from "@/lib/leads/schema";
 import { loadOpportunity, loadOpportunityNotes } from "@/lib/sales/queries";
 import {
   OPPORTUNITY_STAGES,
@@ -156,6 +158,115 @@ export async function deleteOpportunityNote(opportunityId: string, noteId: strin
   }
   revalidateOpportunity(opportunityId);
   return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Find leads (Vibe Prospecting / Explorium)
+// ---------------------------------------------------------------------------
+
+export type LeadSearchResult =
+  | { ok: true; leads: Lead[]; total: number | null; creditsUsed: number | null; credits: Credits | null }
+  | { ok: false; error: { code: LeadsErrorCode | "invalid_input" | "need_filter" | "not_ready" } };
+
+export async function searchLeads(raw: z.input<typeof leadSearchSchema>): Promise<LeadSearchResult> {
+  const ctx = await getReadyContext();
+  if (!ctx?.activeBrand) return { ok: false, error: { code: "not_ready" } };
+  const parsed = leadSearchSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: { code: "invalid_input" } };
+  if (!hasAnyFilter(parsed.data)) return { ok: false, error: { code: "need_filter" } };
+
+  try {
+    const before = await getCredits().catch(() => null);
+    const { leads, total } = await searchProspects(parsed.data);
+    const after = await getCredits().catch(() => null);
+    const creditsUsed = before && after ? Math.max(0, before.remaining - after.remaining) : null;
+    return { ok: true, leads, total, creditsUsed, credits: after };
+  } catch (error) {
+    if (error instanceof LeadsError) {
+      if (error.code !== "leads_not_configured") console.error("[searchLeads]", error.message);
+      return { ok: false, error: { code: error.code } };
+    }
+    console.error("[searchLeads]", error);
+    return { ok: false, error: { code: "leads_failed" } };
+  }
+}
+
+const dedupeKey = (company: string, contact: string) => `${company.trim().toLowerCase()}|${contact.trim().toLowerCase()}`;
+
+/** The first note on an opportunity created from a lead: where it came from and how to reach them. */
+function leadNote(lead: Lead) {
+  return [
+    lead.linkedin && `LinkedIn: ${lead.linkedin}`,
+    lead.website && `Website: ${lead.website}`,
+    lead.location && `Location: ${lead.location}`,
+    `Source: Vibe Prospecting (Explorium), prospect ${lead.id}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+export type AddLeadsResult = { ok: true; added: number; skipped: number } | { ok: false; error: "add_failed" | "invalid_input" };
+
+/** Turns the ticked leads into opportunities, skipping people already in Sales for this brand. */
+export async function addLeadsAsOpportunities(raw: unknown): Promise<AddLeadsResult> {
+  const ctx = await getReadyContext();
+  const parsed = z.array(leadSchema).min(1).max(50).safeParse(raw);
+  if (!ctx?.activeBrand || !parsed.success) return { ok: false, error: "invalid_input" };
+  const brandId = ctx.activeBrand.id;
+  const supabase = await createClient();
+
+  const { data: existing, error: loadError } = await supabase
+    .from("unison_opportunities")
+    .select("company_name, contact_name")
+    .eq("brand_id", brandId)
+    .limit(2000);
+  if (loadError) {
+    console.error("[addLeadsAsOpportunities]", loadError.message);
+    return { ok: false, error: "add_failed" };
+  }
+  const seen = new Set((existing ?? []).map((o) => dedupeKey(o.company_name, o.contact_name)));
+
+  const byKey = new Map<string, Lead>();
+  for (const lead of parsed.data) {
+    const company = (lead.company || lead.name).trim();
+    if (!company) continue;
+    const key = dedupeKey(company, lead.name);
+    if (seen.has(key) || byKey.has(key)) continue;
+    byKey.set(key, { ...lead, company });
+  }
+  if (byKey.size === 0) return { ok: true, added: 0, skipped: parsed.data.length };
+
+  const rows = [...byKey.values()].map((lead) => ({
+    company_name: lead.company,
+    contact_name: lead.name,
+    contact_role: lead.jobTitle,
+    stage: "new" as const,
+    brand_id: brandId,
+    workspace_id: ctx.workspaceId,
+    created_by: ctx.userId,
+  }));
+  const { data, error } = await supabase
+    .from("unison_opportunities")
+    .insert(rows)
+    .select("id, company_name, contact_name");
+  if (error || !data) {
+    console.error("[addLeadsAsOpportunities]", error?.message);
+    return { ok: false, error: "add_failed" };
+  }
+
+  const notes = data.flatMap((row) => {
+    const lead = byKey.get(dedupeKey(row.company_name, row.contact_name));
+    return lead
+      ? [{ opportunity_id: row.id, workspace_id: ctx.workspaceId, content: leadNote(lead), created_by: ctx.userId }]
+      : [];
+  });
+  if (notes.length) {
+    const { error: noteError } = await supabase.from("unison_opportunity_notes").insert(notes);
+    if (noteError) console.error("[addLeadsAsOpportunities] notes:", noteError.message);
+  }
+
+  revalidatePath("/sales");
+  return { ok: true, added: data.length, skipped: parsed.data.length - data.length };
 }
 
 // ---------------------------------------------------------------------------

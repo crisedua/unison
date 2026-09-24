@@ -1,9 +1,11 @@
+import { Search } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/page-header";
 import { StageBadge } from "@/components/sales/stage-badge";
+import { Button } from "@/components/ui/button";
 import { getReadyContext } from "@/lib/context";
 import { listOpportunities } from "@/lib/sales/queries";
 import { createClient } from "@/lib/supabase/server";
@@ -23,11 +25,18 @@ export default async function SalesPage() {
   const opportunities = await listOpportunities(supabase, ctx.activeBrand.id);
 
   const t = await getTranslations("sales");
+  const tLeads = await getTranslations("leads");
   const format = await getFormatter();
 
   return (
     <div>
       <PageHeader title={t("title")} description={t("subtitle")}>
+        <Button variant="outline" asChild>
+          <Link href="/sales/find">
+            <Search />
+            {tLeads("title")}
+          </Link>
+        </Button>
         <NewOpportunityDialog />
       </PageHeader>
 
