@@ -2,13 +2,11 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { hasSupabaseEnv, supabaseKey, supabaseUrl } from "./env";
 
-const PUBLIC_PATHS = ["/login", "/auth"];
-
-function isPublicPath(pathname: string) {
-  return pathname === "/" || PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
-}
-
-/** Refreshes the login session cookie and redirects logged-out visitors to /login. */
+/**
+ * Refreshes the session cookie and gives first-time visitors an anonymous
+ * Supabase session, so there is no login screen. Each browser gets its own
+ * workspace; row-level security still keeps workspaces apart.
+ */
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -33,32 +31,14 @@ export async function updateSession(request: NextRequest) {
   });
 
   // Do not run code between createServerClient and getClaims(): the call
-  // refreshes the session, and skipping it logs people out at random.
+  // refreshes the session, and skipping it drops sessions at random.
   const { data } = await supabase.auth.getClaims();
-  const isLoggedIn = Boolean(data?.claims);
-  const { pathname, search } = request.nextUrl;
 
-  if (!isLoggedIn && !isPublicPath(pathname)) {
-    return redirectKeepingCookies(request, response, "/login", pathname + search);
-  }
-
-  if (isLoggedIn && pathname === "/login") {
-    return redirectKeepingCookies(request, response, "/brain");
+  if (!data?.claims) {
+    const { error } = await supabase.auth.signInAnonymously();
+    // The app layout shows a setup notice when this fails (anonymous sign-ins turned off).
+    if (error) console.error("[proxy] anonymous sign-in failed:", error.status, error.message);
   }
 
   return response;
-}
-
-function redirectKeepingCookies(
-  request: NextRequest,
-  source: NextResponse,
-  pathname: string,
-  next?: string,
-) {
-  const url = request.nextUrl.clone();
-  url.pathname = pathname;
-  url.search = next ? `?next=${encodeURIComponent(next)}` : "";
-  const redirect = NextResponse.redirect(url);
-  source.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
-  return redirect;
 }

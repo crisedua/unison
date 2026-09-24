@@ -6,6 +6,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const ctx = await getAppContext();
 
   if (ctx.status === "env_missing") return <SetupNotice kind="env" missing={missingRequiredEnv()} />;
+  if (ctx.status === "no_session") return <SetupNotice kind="anonymous" />;
   if (ctx.status === "database_not_ready") return <SetupNotice kind="database" message={ctx.message} />;
 
   return <AppShell ctx={ctx}>{children}</AppShell>;

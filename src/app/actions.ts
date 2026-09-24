@@ -2,10 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 import { isLocale, LOCALE_COOKIE } from "@/i18n/config";
 import { ACTIVE_BRAND_COOKIE, getReadyContext } from "@/lib/context";
-import { createClient } from "@/lib/supabase/server";
 
 const ONE_YEAR = 60 * 60 * 24 * 365;
 
@@ -26,10 +24,4 @@ export async function switchBrand(brandId: string) {
   });
   revalidatePath("/", "layout");
   return { ok: true as const };
-}
-
-export async function signOut() {
-  const supabase = await createClient();
-  await supabase.auth.signOut();
-  redirect("/login");
 }

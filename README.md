@@ -4,7 +4,7 @@ Your company's memory for marketing and sales. Describe the business once in the
 
 ## What's built (phase 1)
 
-- **Login** by email link. No passwords.
+- **No login.** Each browser gets its own private workspace automatically (a Supabase anonymous session). Clearing the browser's cookies starts a new, empty workspace.
 - **Company Brain.**
   - Seven fields: what you do, audience, problem, positioning, offer, proof, and brand voice.
   - Notes and uploaded files (PDF, Word, TXT, Markdown).
@@ -21,7 +21,7 @@ Your company's memory for marketing and sales. Describe the business once in the
 
 ## Setup (about 15 minutes)
 
-### 1. Supabase (database and login)
+### 1. Supabase (database)
 
 1. Create a free project at [supabase.com](https://supabase.com). Save the database password you choose.
 2. Click **Connect** at the top of the dashboard.
@@ -30,9 +30,7 @@ Your company's memory for marketing and sales. Describe the business once in the
 3. In the same **Connect** window, under **Connection string**, copy the **Session pooler** URI.
    - Replace `[YOUR-PASSWORD]` with your database password.
    - This is your `DATABASE_URL`.
-4. Go to **Authentication → URL Configuration**.
-   - Set the Site URL to `http://localhost:3000`.
-   - Add `http://localhost:3000/**` under Redirect URLs.
+4. Go to **Authentication → Sign In / Providers** and turn on **Allow anonymous sign-ins**.
 
 ### 2. OpenAI (the writing)
 
@@ -59,8 +57,7 @@ npm run db:migrate
 npm run dev
 ```
 
-1. Open [http://localhost:3000](http://localhost:3000).
-2. Log in with the **same email you used for Supabase**. Supabase's built-in email service only delivers to your own project team and sends a few emails per hour. That's fine for now; phase 3 adds a real email provider for customers.
+Open [http://localhost:3000](http://localhost:3000). You land straight in the Company Brain.
 
 ## Common changes
 
@@ -81,7 +78,6 @@ src/
   app/(app)/studio     Content Studio and the "write the set" action
   app/(app)/library    Saved sets and drafts
   app/(app)/drafts     Draft editor
-  app/login, app/auth  Email-link login
   lib/engine           AI engine: output formats, prompt, OpenAI call
   lib/brain            Company Brain facts and queries
   components/          Shared UI (app shell, content set view, shadcn/ui)

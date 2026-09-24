@@ -20,30 +20,10 @@
     "envBody": "Add these keys to a file called .env.local in the project folder, then restart the app:",
     "databaseTitle": "Almost ready: set up the database",
     "databaseBody": "Your keys work, but the database tables aren't there yet. Run this in the project folder, then reload:",
+    "anonymousTitle": "Almost ready: allow anonymous sessions",
+    "anonymousBody": "There's no login screen, so Supabase has to allow anonymous sessions. In the Supabase dashboard, turn on this setting, then reload:",
     "details": "Details: {message}",
     "readme": "Step-by-step instructions are in README.md."
-  },
-  "login": {
-    "title": "Log in to {name}",
-    "subtitle": "We'll email you a login link. No password needed.",
-    "emailLabel": "Email",
-    "emailPlaceholder": "you@company.com",
-    "submit": "Email me a login link",
-    "sending": "Sending…",
-    "sentTitle": "Check your inbox",
-    "sentBody": "We sent a login link to {email}. Open it on this device to continue.",
-    "useAnother": "Use a different email",
-    "heroTitle": "Your company, in one voice.",
-    "heroBody": "Tell {name} what you sell, who it's for and how you sound. Every campaign, post and sales brief is written from that memory.",
-    "point1": "Fill in your Company Brain once",
-    "point2": "Get blog posts, emails, LinkedIn posts, video scripts, Reels and ads",
-    "point3": "See which facts every piece was written from",
-    "errors": {
-      "invalid_email": "Enter a valid email address.",
-      "send_failed": "We couldn't send the email. Please try again.",
-      "rate_limited": "Too many login emails were sent. Wait a few minutes and try again.",
-      "link": "That login link is invalid or has expired. Request a new one."
-    }
   },
   "nav": {
     "brain": "Company Brain",
@@ -52,7 +32,6 @@
     "campaigns": "Campaign Studio",
     "sales": "Sales",
     "results": "Results",
-    "signOut": "Log out",
     "brands": "Brands",
     "newBrand": "New brand"
   },

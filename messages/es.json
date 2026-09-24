@@ -20,30 +20,10 @@
     "envBody": "Agrega estas claves a un archivo llamado .env.local en la carpeta del proyecto y reinicia la app:",
     "databaseTitle": "Casi listo: prepara la base de datos",
     "databaseBody": "Tus claves funcionan, pero todavía faltan las tablas de la base de datos. Ejecuta esto en la carpeta del proyecto y recarga:",
+    "anonymousTitle": "Casi listo: permite sesiones anónimas",
+    "anonymousBody": "No hay pantalla de inicio de sesión, así que Supabase tiene que permitir sesiones anónimas. En el panel de Supabase activa esta opción y recarga:",
     "details": "Detalles: {message}",
     "readme": "Las instrucciones paso a paso están en README.md."
-  },
-  "login": {
-    "title": "Inicia sesión en {name}",
-    "subtitle": "Te enviamos un enlace por correo. Sin contraseñas.",
-    "emailLabel": "Correo electrónico",
-    "emailPlaceholder": "tu@empresa.com",
-    "submit": "Enviarme el enlace",
-    "sending": "Enviando…",
-    "sentTitle": "Revisa tu correo",
-    "sentBody": "Enviamos un enlace de acceso a {email}. Ábrelo en este dispositivo para continuar.",
-    "useAnother": "Usar otro correo",
-    "heroTitle": "Tu empresa, con una sola voz.",
-    "heroBody": "Cuéntale a {name} qué vendes, a quién y cómo hablas. Cada campaña, publicación y brief de ventas se escribe desde esa memoria.",
-    "point1": "Completa tu Cerebro de empresa una sola vez",
-    "point2": "Obtén artículos de blog, emails, posts de LinkedIn, guiones de video, Reels y anuncios",
-    "point3": "Ve en qué datos se basó cada pieza",
-    "errors": {
-      "invalid_email": "Escribe un correo válido.",
-      "send_failed": "No pudimos enviar el correo. Inténtalo de nuevo.",
-      "rate_limited": "Se enviaron demasiados correos de acceso. Espera unos minutos e inténtalo de nuevo.",
-      "link": "Ese enlace no es válido o ya caducó. Pide uno nuevo."
-    }
   },
   "nav": {
     "brain": "Cerebro de empresa",
@@ -52,7 +32,6 @@
     "campaigns": "Estudio de campañas",
     "sales": "Ventas",
     "results": "Resultados",
-    "signOut": "Cerrar sesión",
     "brands": "Marcas",
     "newBrand": "Nueva marca"
   },

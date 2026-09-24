@@ -101,7 +101,7 @@
   }
 }
 
-/* Faint grid used behind the login page. */
+/* Faint grid used behind the setup screens. */
 .bg-grid {
   background-image:
     linear-gradient(to right, oklch(0.49 0.23 284 / 0.05) 1px, transparent 1px),
