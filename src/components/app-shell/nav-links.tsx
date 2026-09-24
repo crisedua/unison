@@ -1,18 +1,19 @@
 "use client";
 
-import { Brain, ChartLine, Handshake, Library, Megaphone, PenLine, type LucideIcon } from "lucide-react";
+import { Brain, ChartLine, Handshake, Library, Megaphone, PenLine, UserSearch, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
-type NavKey = "brain" | "studio" | "library" | "campaigns" | "sales" | "results";
+type NavKey = "brain" | "studio" | "library" | "campaigns" | "prospects" | "sales" | "results";
 
 const ITEMS: { key: NavKey; href: string | null; icon: LucideIcon }[] = [
   { key: "brain", href: "/brain", icon: Brain },
   { key: "studio", href: "/studio", icon: PenLine },
   { key: "library", href: "/library", icon: Library },
   { key: "campaigns", href: "/campaigns", icon: Megaphone },
+  { key: "prospects", href: "/prospects", icon: UserSearch },
   { key: "sales", href: "/sales", icon: Handshake },
   { key: "results", href: "/results", icon: ChartLine },
 ];

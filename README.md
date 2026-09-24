@@ -21,6 +21,7 @@ Your company's memory for marketing and sales. Describe the business once in the
   - email marketing: how to grow the list, segments, a ready-to-send sequence and automations
   - angles, an A/B test, a launch plan, tracking setup (pixel, conversion events, UTM links) and ready-to-post copy per channel
   - a Markdown download of the whole plan
+- **Prospects.** Find people to sell to by seniority, department, country and company size (data from Explorium, the provider behind Vibe Prospecting). Look up their emails and phones, export them to CSV, or add them to Sales as opportunities. Needs `EXPLORIUM_API_KEY`; searches and contact lookups use Explorium credits.
 - **Library.** Every set is saved automatically. Any piece can be saved as an editable draft, copied, or downloaded.
 - **Brands.** One account can hold several brands, each with its own brain. This is useful for a second business or for clients.
 - **English and Spanish interface.** Toggle with EN / ES.
@@ -82,6 +83,7 @@ src/
   app/(app)/brain      Company Brain screen and its save/upload actions
   app/(app)/studio     Content Studio and the "write the set" action
   app/(app)/campaigns  Campaign Studio: marketing plans, results and read-outs
+  app/(app)/prospects  Prospect search, contact lookup, CSV export (lib/prospects: Explorium client)
   app/(app)/library    Saved sets and drafts
   app/(app)/drafts     Draft editor
   lib/engine           AI engine: output formats, prompt, OpenAI call
