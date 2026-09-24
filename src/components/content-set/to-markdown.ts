@@ -51,6 +51,7 @@ export function assetToMarkdown<T extends AssetType>(type: T, asset: AssetOutput
       return `${l.subject}: ${a.subject}\n${l.preview}: ${a.preview_text}\n\n${a.body}`;
     }
     case "linkedin_post":
+    case "facebook_post":
       return (asset as AssetOutput["linkedin_post"]).post;
     case "short_script": {
       const a = asset as AssetOutput["short_script"];
@@ -90,6 +91,7 @@ export function assetTitle<T extends AssetType>(type: T, asset: AssetOutput[T], 
     case "email":
       return clip((asset as AssetOutput["email"]).subject) || fallback;
     case "linkedin_post":
+    case "facebook_post":
       return clip(firstLine((asset as AssetOutput["linkedin_post"]).post)) || fallback;
     case "short_script":
       return clip((asset as AssetOutput["short_script"]).title) || fallback;

@@ -1,6 +1,6 @@
 # Unison
 
-Your company's memory for marketing and sales. Describe the business once in the **Company Brain**. Every blog post, email, LinkedIn post, video script, Instagram Reel and Meta ad is then written from it, in English or Spanish, and shows which facts it used.
+Your company's memory for marketing and sales. Describe the business once in the **Company Brain**. Every marketing plan, blog post, email, LinkedIn or Facebook post, video script, Instagram Reel and Meta ad is then written from it, in English or Spanish, and shows which facts it used.
 
 ## What's built (phase 1)
 
@@ -15,6 +15,12 @@ Your company's memory for marketing and sales. Describe the business once in the
   - a tone layered on top of your brand voice
   - the language: US or UK English; Spanish for Latin America, Mexico or Spain
   - It won't write until the facts it needs are filled in.
+- **Campaign Studio: full marketing plans.** Pick a goal, the channels (Facebook, Instagram, Meta ads, email, LinkedIn, TikTok, YouTube, Google Ads, WhatsApp, blog), a length (7, 14, 28 or 90 days) and an optional budget. The plan includes:
+  - strategy: positioning and the funnel from awareness to retention
+  - a playbook per channel: role, targeting, setup, formats, cadence, share of the paid budget and the KPI to watch
+  - email marketing: how to grow the list, segments, a ready-to-send sequence and automations
+  - angles, an A/B test, a launch plan, tracking setup (pixel, conversion events, UTM links) and ready-to-post copy per channel
+  - a Markdown download of the whole plan
 - **Library.** Every set is saved automatically. Any piece can be saved as an editable draft, copied, or downloaded.
 - **Brands.** One account can hold several brands, each with its own brain. This is useful for a second business or for clients.
 - **English and Spanish interface.** Toggle with EN / ES.
@@ -75,6 +81,7 @@ Open [http://localhost:3000](http://localhost:3000). You land straight in the Co
 src/
   app/(app)/brain      Company Brain screen and its save/upload actions
   app/(app)/studio     Content Studio and the "write the set" action
+  app/(app)/campaigns  Campaign Studio: marketing plans, results and read-outs
   app/(app)/library    Saved sets and drafts
   app/(app)/drafts     Draft editor
   lib/engine           AI engine: output formats, prompt, OpenAI call

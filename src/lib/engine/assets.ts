@@ -9,6 +9,7 @@ export const ASSET_TYPES = [
   "blog_post",
   "email",
   "linkedin_post",
+  "facebook_post",
   "short_script",
   "instagram_reel",
   "meta_ad",
@@ -78,6 +79,10 @@ export const assetSchemas = {
     post: z.string().describe("The full post, line breaks included"),
     ...ending,
   }),
+  facebook_post: z.object({
+    post: z.string().describe("The full post, line breaks included"),
+    ...ending,
+  }),
   short_script: z.object({
     title: z.string(),
     duration_seconds: duration,
@@ -110,6 +115,7 @@ export const assetRequirements: Record<AssetType, readonly FactKey[]> = {
   blog_post: ["company", "audience", "voice"],
   email: ["company", "audience", "voice"],
   linkedin_post: ["company", "audience", "voice"],
+  facebook_post: ["company", "audience", "voice"],
   short_script: ["company", "audience", "voice"],
   instagram_reel: ["company", "audience", "voice"],
   meta_ad: ["company", "audience", "offer", "voice"],

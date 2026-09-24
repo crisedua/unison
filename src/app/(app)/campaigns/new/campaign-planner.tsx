@@ -171,7 +171,7 @@ export function CampaignPlanner({ missing, defaultLanguage, aiConfigured }: Prop
 
             <fieldset className="space-y-2">
               <legend className="mb-2 text-sm font-medium">{t("durationLabel")}</legend>
-              <div className="grid grid-cols-3 rounded-lg bg-muted p-0.5">
+              <div className="grid grid-cols-4 rounded-lg bg-muted p-0.5">
                 {CAMPAIGN_DURATIONS.map((days) => (
                   <button
                     key={days}

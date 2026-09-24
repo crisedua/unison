@@ -84,6 +84,8 @@ const ASSET_RULES: Record<AssetType, string> = {
     "Email a real person would send. One idea, one ask, short paragraphs. No throat-clearing openers like “I hope this finds you well”.",
   linkedin_post:
     "LinkedIn post. The first line is the hook and must work on its own, because it is all people see before “…see more”. Short lines with blank lines between them. At most 3 hashtags, at the very end, and only if they feel natural. No emojis unless the brand voice uses them.",
+  facebook_post:
+    "Facebook Page post. The first line is the hook and must work on its own, because long posts are cut after a few lines. Conversational, short paragraphs with blank lines between them, one link placeholder like [link] at most, and one clear ask. It should invite comments with a real question when that fits. At most 2 hashtags, and only if they feel natural. No emojis unless the brand voice uses them.",
   short_script:
     "Short vertical video script (Reels, TikTok, Shorts, or a talking-head clip). The hook lands in the first 3 seconds. 3–6 scenes, each with what's on screen, what's said, and on-screen text.",
   instagram_reel:
@@ -96,6 +98,7 @@ const LENGTH_GUIDE: Record<AssetType, Record<Length, string>> = {
   blog_post: { short: "about 400 words", standard: "about 800 words", long: "about 1,400 words" },
   email: { short: "about 80 words", standard: "about 150 words", long: "about 250 words" },
   linkedin_post: { short: "about 60 words", standard: "about 140 words", long: "about 230 words" },
+  facebook_post: { short: "about 50 words", standard: "about 110 words", long: "about 200 words" },
   short_script: {
     short: "20–30 seconds when spoken",
     standard: "40–50 seconds when spoken",

@@ -77,7 +77,8 @@ export function AssetBody<T extends AssetType>({ type, asset }: { type: T; asset
         </div>
       );
     }
-    case "linkedin_post": {
+    case "linkedin_post":
+    case "facebook_post": {
       const a = asset as AssetOutput["linkedin_post"];
       return (
         <div className="rounded-lg border bg-card px-5 py-4 text-[15px] leading-relaxed whitespace-pre-wrap">

@@ -52,7 +52,7 @@ const planSchema = z.object({
   offer: z.string().max(1000),
   audience: z.string().max(1000),
   channels: z.array(z.enum(CHANNELS)).min(1).max(CHANNELS.length),
-  durationDays: z.union([z.literal(7), z.literal(14), z.literal(28)]),
+  durationDays: z.union([z.literal(7), z.literal(14), z.literal(28), z.literal(90)]),
   budget: z.string().max(200),
   language: z.enum(CONTENT_LANGUAGES),
 });

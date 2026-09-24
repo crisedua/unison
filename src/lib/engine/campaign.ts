@@ -30,39 +30,80 @@ const GOAL_PROMPT: Record<CampaignGoal, string> = {
 };
 
 const CHANNEL_PROMPT: Record<Channel, string> = {
-  linkedin: "LinkedIn (organic posts)",
-  email: "Email to the company's own list",
-  instagram: "Instagram (organic posts and Reels)",
+  facebook: "Facebook (organic: Page posts, Groups and Facebook Reels)",
+  instagram: "Instagram (organic: Reels, carousels and Stories)",
   meta_ads: "Meta ads (paid, Facebook and Instagram)",
+  email: "Email marketing to the company's own list",
+  linkedin: "LinkedIn (organic posts)",
   tiktok: "TikTok (organic short video)",
+  youtube: "YouTube (videos and Shorts)",
+  google_ads: "Google Ads (paid search)",
   whatsapp: "WhatsApp (broadcast lists and Status, to existing contacts only)",
   blog: "Blog article (SEO)",
 };
 
+// How the ready-to-publish piece for each channel should look.
+const CHANNEL_COPY_RULES: Record<Channel, string> = {
+  facebook: "a Page post: hook in the first line, short paragraphs, one link and one ask; say which Groups it fits, without spamming them",
+  instagram: "a Reel script (hook in the first 2 seconds, scenes, on-screen text) plus its caption and 3 to 8 specific hashtags",
+  meta_ads: "3 primary texts on different angles, 3 headlines of 40 characters max and the CTA button; no claims about personal attributes (\"Are you struggling with…?\"), per Meta's ad policies",
+  email: "one standalone email with subject and preview text (the full sequence goes in email_program)",
+  linkedin: "a post whose first line works alone before \"…see more\"; short lines, at most 3 hashtags at the end",
+  tiktok: "a script with the hook in the first 2 seconds, scenes, on-screen text and a caption",
+  youtube: "a video title under 70 characters, a description with the ask in the first 2 lines, and a 60-second Shorts script",
+  google_ads: "a responsive search ad: 5 headlines of 30 characters max, 2 descriptions of 90 characters max, and 5 to 10 keywords with their match type",
+  whatsapp: "a broadcast message under 500 characters that reads like a person wrote it, with one ask",
+  blog: "the title, meta description and an outline with the key points under each subheading",
+};
+
+const PAID_CHANNELS: readonly Channel[] = ["meta_ads", "google_ads"];
+
 export function buildCampaignTask(input: CampaignBriefInput): string {
   const promoting = input.offer.trim();
+  const long = input.durationDays >= 60;
+  const paid = input.channels.filter((c) => PAID_CHANNELS.includes(c));
+  const hasEmail = input.channels.includes("email");
+
   return [
-    "# TASK: CAMPAIGN BRIEF",
-    "Plan one campaign a small team can launch this week.",
+    "# TASK: MARKETING PLAN",
+    long
+      ? "Write a complete marketing plan a small team can start this week and run for the whole period."
+      : "Plan one campaign a small team can launch this week, as a complete marketing plan.",
     `## Goal\n${GOAL_PROMPT[input.goal]}${promoting ? `\nWhat we're promoting: ${promoting}` : ""}`,
     `## Audience\n${input.audience.trim() || "Use the audience from the Company Brain."}`,
     [
       "## Constraints",
       `- Channels (use only these): ${input.channels.map((c) => CHANNEL_PROMPT[c]).join("; ")}`,
-      `- Campaign length: ${input.durationDays} days`,
+      `- Length: ${input.durationDays} days`,
       input.budget.trim()
         ? `- Budget: ${input.budget.trim()}`
-        : "- Budget: not given. Keep paid spend modest and say where it matters most.",
+        : paid.length > 0
+          ? "- Budget: not given. Keep paid spend modest, say where it matters most, and phrase amounts as ranges the team can adjust."
+          : "- Budget: not given, and no paid channels were chosen. Plan for time, not money.",
       languageLine(input.language),
     ].join("\n"),
     [
       "## What to deliver",
+      "- strategy: the positioning sentence for this plan, then the 4 funnel stages (awareness, consideration, conversion, retention), each with its goal, the chosen channels that do the work there and the concrete tactics.",
+      "- channel_plans: exactly one per chosen channel, covering its role, targeting, setup, formats, cadence, share of the paid budget and the KPI to watch." +
+        (paid.length > 0
+          ? " For paid channels, give the campaign objective, the ad sets (cold audience, lookalike or similar, and retargeting of site visitors and engagers), placements and how the budget splits between them. Organic channels get 0% of the budget; paid channels together get 100%."
+          : " No paid channels were chosen, so every budget share is 0."),
+      hasEmail &&
+        "- email_program: how to grow the list during the campaign, the segments, a sequence of 4 to 6 ready-to-send emails spread across the campaign (each with its send day, segment, purpose, subject, preview text, body and one call to action), and 2 or 3 automations worth setting up. Each email does one job and moves the reader one step closer to the goal.",
       "- 4 or 5 angles that are genuinely different (not one idea reworded), each grounded in a customer truth from the Company Brain.",
       "- 2 or 3 audience segments, each with the one message it should hear.",
       "- An A/B test of two variants built on two different angles, with the same audience and budget, a clear hypothesis, the metric that decides it and a decision rule. Pick the success measure closest to revenue that the team can count (qualified leads beat clicks).",
-      `- A launch plan across the ${input.durationDays} days, step by step, on the chosen channels only.`,
-      "- Ready-to-publish copy for every chosen channel, following that channel's conventions and ending with the closing ask. For Meta ads, give a primary text and a headline; for Reels or TikTok, a short script with the hook first.",
-    ].join("\n"),
+      long
+        ? `- A launch plan across the ${input.durationDays} days, week by week (use "Week 1", "Weeks 2–4" and so on), on the chosen channels only.`
+        : `- A launch plan across the ${input.durationDays} days, step by step, on the chosen channels only.`,
+      "- tracking: 3 to 6 setup steps so the team can measure it: the pixel or tag, the conversion event, UTM links per channel and where to read the numbers.",
+      "- Ready-to-publish copy for every chosen channel, ending with the closing ask:",
+      ...input.channels.map((c) => `  - ${CHANNEL_PROMPT[c]}: ${CHANNEL_COPY_RULES[c]}.`),
+      "- Never invent benchmarks, prices or results. When a KPI needs a target the brain doesn't give, describe what a good first result looks like instead of making up a number.",
+    ]
+      .filter(Boolean)
+      .join("\n"),
   ].join("\n\n");
 }
 
