@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Mails } from "lucide-react";
+import { ChevronRight, Loader2, Mails } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
@@ -25,12 +25,14 @@ import { missingFacts, type FactKey } from "@/lib/brain/facts";
 import { CONTENT_LANGUAGES, isContentLanguage, type ContentLanguage } from "@/lib/languages";
 import type { Credits } from "@/lib/leads/explorium";
 import { campaignRequirements, MAX_CAMPAIGN_PROSPECTS } from "@/lib/sales/campaign";
+import type { CampaignSummary } from "@/lib/sales/queries";
 import type { Opportunity } from "@/lib/types";
 import { writeEmailCampaign, type CampaignResult } from "./actions";
 import { NewOpportunityDialog } from "./new-opportunity-dialog";
 
 type Props = {
   opportunities: Opportunity[];
+  campaigns: CampaignSummary[];
   leadsConfigured: boolean;
   credits: Credits | null;
   status: Record<FactKey, boolean>;
@@ -38,7 +40,15 @@ type Props = {
   aiConfigured: boolean;
 };
 
-export function SalesWorkspace({ opportunities, leadsConfigured, credits, status, defaultLanguage, aiConfigured }: Props) {
+export function SalesWorkspace({
+  opportunities,
+  campaigns,
+  leadsConfigured,
+  credits,
+  status,
+  defaultLanguage,
+  aiConfigured,
+}: Props) {
   const t = useTranslations("sales");
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -114,6 +124,21 @@ export function SalesWorkspace({ opportunities, leadsConfigured, credits, status
         )}
       </section>
 
+      <section id="campaigns" className="scroll-mt-6 space-y-4">
+        <StepHeading step={3} title={t("campaign.stepCampaigns")} help={t("campaign.stepCampaignsHelp")} />
+        {campaigns.length === 0 ? (
+          <p className="rounded-xl border border-dashed px-6 py-10 text-center text-sm text-muted-foreground">
+            {t("campaign.noCampaigns")}
+          </p>
+        ) : (
+          <ul className="divide-y overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
+            {campaigns.map((c) => (
+              <CampaignRow key={c.id} campaign={c} />
+            ))}
+          </ul>
+        )}
+      </section>
+
       <CampaignDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
@@ -137,6 +162,29 @@ function StepHeading({ step, title, help }: { step: number; title: string; help:
         <p className="text-sm text-muted-foreground">{help}</p>
       </div>
     </div>
+  );
+}
+
+function CampaignRow({ campaign }: { campaign: CampaignSummary }) {
+  const t = useTranslations("sales");
+  const format = useFormatter();
+  return (
+    <li>
+      <Link
+        href={`/sales/campaign/${campaign.id}`}
+        className="flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-muted/60"
+      >
+        <Mails className="size-4 shrink-0 text-primary" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-medium">{campaign.title}</p>
+          <p className="truncate text-xs text-muted-foreground">
+            {t("campaign.forCount", { count: campaign.prospects })} ·{" "}
+            {format.dateTime(new Date(campaign.created_at), { dateStyle: "medium", timeStyle: "short" })}
+          </p>
+        </div>
+        <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+      </Link>
+    </li>
   );
 }
 

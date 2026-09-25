@@ -87,7 +87,7 @@ export async function compileSalesOutput<T extends SalesOutputType>(args: {
 const CAMPAIGN_TASK = [
   "# TASK: EMAIL CAMPAIGN FOR A GROUP OF PROSPECTS",
   "Write ONE sequence of 3 short cold emails (day 0, around day 3, around day 7) that will go to every prospect listed below. The same text is sent to all of them, so write for what they have in common: their roles, industries and company sizes.",
-  "- Personalize only through merge fields, written exactly like this: {{first_name}}, {{company}}, {{role}}. Use {{first_name}} in the greeting of every email and {{company}} at least once in the sequence. Use {{role}} only if every prospect listed has a role. Never write a real prospect's name or company into the text.",
+  "- Personalize only through two merge fields, written exactly like this: {{first_name}} and {{company}}. Use {{first_name}} in the greeting of every email and {{company}} at most once per email. Write each sentence with {{company}} so it still reads naturally if {{company}} is replaced by \"your company\" (the emails may be sent from a tool that can't fill it in). Never write a real prospect's name or company into the text.",
   "- Cold outreach: they have never heard from us. No fake familiarity, and no claims about their company beyond what the list supports.",
   "- One ask per email, plain text, under 120 words. Follow-ups add something new instead of 'just checking in'.",
 ].join("\n");

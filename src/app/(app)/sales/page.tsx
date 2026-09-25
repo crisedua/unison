@@ -7,7 +7,7 @@ import { loadBrand, loadDocuments } from "@/lib/brain/queries";
 import { getReadyContext } from "@/lib/context";
 import { isAiConfigured } from "@/lib/engine/openai";
 import { getCredits, isLeadsConfigured } from "@/lib/leads/explorium";
-import { listOpportunities } from "@/lib/sales/queries";
+import { listEmailCampaigns, listOpportunities } from "@/lib/sales/queries";
 import { createClient } from "@/lib/supabase/server";
 import { SalesWorkspace } from "./sales-workspace";
 
@@ -27,8 +27,9 @@ export default async function SalesPage() {
 
   const supabase = await createClient();
   const leadsConfigured = isLeadsConfigured();
-  const [opportunities, brand, documents, credits] = await Promise.all([
+  const [opportunities, campaigns, brand, documents, credits] = await Promise.all([
     listOpportunities(supabase, brandId),
+    listEmailCampaigns(supabase, brandId),
     loadBrand(supabase, brandId),
     loadDocuments(supabase, brandId),
     leadsConfigured ? getCredits().catch(() => null) : null,
@@ -42,6 +43,7 @@ export default async function SalesPage() {
       <PageHeader title={t("title")} description={t("subtitle")} />
       <SalesWorkspace
         opportunities={opportunities}
+        campaigns={campaigns}
         leadsConfigured={leadsConfigured}
         credits={credits}
         status={factStatus(brand, documents.length)}

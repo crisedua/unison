@@ -26,8 +26,20 @@ import {
   type Lead,
   type LeadSearch,
 } from "@/lib/leads/schema";
-import { CAMPAIGN_TYPE, campaignRequirements, MAX_CAMPAIGN_PROSPECTS } from "@/lib/sales/campaign";
-import { loadOpportunitiesByIds, loadOpportunity, loadOpportunityNotes } from "@/lib/sales/queries";
+import {
+  CAMPAIGN_TYPE,
+  campaignInputSchema,
+  campaignRequirements,
+  MAX_CAMPAIGN_PROSPECTS,
+} from "@/lib/sales/campaign";
+import { EMAIL_NOT_FOUND_NOTE } from "@/lib/sales/export";
+import {
+  loadCampaign,
+  loadContactInfo,
+  loadOpportunitiesByIds,
+  loadOpportunity,
+  loadOpportunityNotes,
+} from "@/lib/sales/queries";
 import {
   OPPORTUNITY_STAGES,
   salesRequirements,
@@ -268,6 +280,53 @@ export async function lookupLeadEmails(ids: string[]): Promise<EmailLookupResult
   } catch (error) {
     return { ok: false, error: leadsFailure("lookupLeadEmails", error) };
   }
+}
+
+export type CampaignEmailsResult =
+  | { ok: true; found: number; checked: number; credits: Credits | null }
+  | { ok: false; error: { code: LeadsErrorCode | "invalid_input" | "not_found" | "nothing_to_check"; detail?: string } };
+
+/**
+ * Looks up work emails for the campaign's prospects that don't have one yet
+ * and were never looked up. Each result is saved as a note on the prospect,
+ * so nobody is paid for twice. Costs Explorium credits per person.
+ */
+export async function findCampaignEmails(generationId: string): Promise<CampaignEmailsResult> {
+  const ctx = await getReadyContext();
+  if (!ctx?.activeBrand || !idSchema.safeParse(generationId).success) return { ok: false, error: { code: "invalid_input" } };
+  const supabase = await createClient();
+  const row = await loadCampaign(supabase, generationId);
+  const input = row ? campaignInputSchema.safeParse(row.input) : null;
+  if (!row || !input?.success) return { ok: false, error: { code: "not_found" } };
+
+  const contacts = await loadContactInfo(supabase, input.data.opportunity_ids);
+  const pending = Object.entries(contacts)
+    .filter(([, c]) => !c.email && !c.emailChecked && c.prospectId)
+    .slice(0, EMAIL_LOOKUP_MAX);
+  if (pending.length === 0) return { ok: false, error: { code: "nothing_to_check" } };
+
+  let emails: Map<string, string>;
+  try {
+    emails = await findEmails(pending.map(([, c]) => c.prospectId));
+  } catch (error) {
+    return { ok: false, error: leadsFailure("findCampaignEmails", error) };
+  }
+
+  const notes = pending.map(([opportunityId, c]) => {
+    const email = emails.get(c.prospectId);
+    return {
+      opportunity_id: opportunityId,
+      workspace_id: ctx.workspaceId,
+      content: email ? `Email: ${email}` : EMAIL_NOT_FOUND_NOTE,
+      created_by: ctx.userId,
+    };
+  });
+  const { error } = await supabase.from("unison_opportunity_notes").insert(notes);
+  if (error) console.error("[findCampaignEmails] could not save:", error.message);
+
+  const credits = await getCredits().catch(() => null);
+  revalidatePath(`/sales/campaign/${generationId}`);
+  return { ok: true, found: emails.size, checked: pending.length, credits };
 }
 
 const dedupeKey = (company: string, contact: string) => `${company.trim().toLowerCase()}|${contact.trim().toLowerCase()}`;

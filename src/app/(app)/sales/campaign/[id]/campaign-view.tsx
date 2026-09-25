@@ -1,18 +1,28 @@
 "use client";
 
-import { ArrowLeft, Braces, Download, Trash2 } from "lucide-react";
+import { ArrowLeft, AtSign, Braces, Download, FileDown, Loader2, Mail, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { deleteGeneration } from "@/app/(app)/library/actions";
+import { findCampaignEmails } from "@/app/(app)/sales/actions";
+import { CopyButton } from "@/components/draft-actions";
 import { downloadText, slugify } from "@/components/content-set/to-markdown";
 import { SalesOutputView, useSalesText } from "@/components/sales/sales-output-view";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { isContentLanguage } from "@/lib/languages";
+import { EMAIL_LOOKUP_CREDITS } from "@/lib/leads/schema";
 import { mergeCampaign, TEMPLATE_FIELDS, type EmailCampaign } from "@/lib/sales/campaign";
+import {
+  contactsToReachCsv,
+  downloadFile,
+  splitName,
+  toHostingerCampaign,
+  type ContactInfo,
+} from "@/lib/sales/export";
 import type { Opportunity } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -23,11 +33,22 @@ type Props = {
   language: string;
   campaign: EmailCampaign;
   prospects: Opportunity[];
+  contacts: Record<string, ContactInfo>;
+  leadsConfigured: boolean;
 };
 
 const TEMPLATE = "template";
 
-export function CampaignView({ generationId, title, createdAt, language, campaign, prospects }: Props) {
+export function CampaignView({
+  generationId,
+  title,
+  createdAt,
+  language,
+  campaign,
+  prospects,
+  contacts,
+  leadsConfigured,
+}: Props) {
   const t = useTranslations("sales");
   const tCommon = useTranslations("common");
   const tLibrary = useTranslations("library");
@@ -38,7 +59,49 @@ export function CampaignView({ generationId, title, createdAt, language, campaig
   const [shown, setShown] = useState<string>(prospects[0]?.id ?? TEMPLATE);
   const [pending, startTransition] = useTransition();
 
+  const [lookingUp, startLookup] = useTransition();
+
   const current = prospects.find((p) => p.id === shown);
+  const withEmail = prospects.filter((p) => contacts[p.id]?.email);
+  const canLookUp = prospects.filter((p) => {
+    const c = contacts[p.id];
+    return c && !c.email && !c.emailChecked && c.prospectId;
+  });
+  const hostinger = toHostingerCampaign(campaign, language);
+  const fileBase = slugify(title);
+
+  function exportContacts() {
+    const rows = withEmail.map((p) => ({
+      email: contacts[p.id].email,
+      ...splitName(p.contact_name),
+      company: p.company_name,
+      jobTitle: p.contact_role,
+    }));
+    downloadFile(`${fileBase}-contacts.csv`, contactsToReachCsv(rows), "text/csv;charset=utf-8");
+  }
+
+  function hostingerText() {
+    return hostinger.emails
+      .map(
+        (email, i) =>
+          `${t("campaign.hostinger.emailN", { n: i + 1, day: email.send_on_day })}\n${t("campaign.hostinger.subject")}: ${email.subject}\n\n${email.body}`,
+      )
+      .join("\n\n----------------------------------------\n\n");
+  }
+
+  function lookUpEmails() {
+    const count = Math.min(canLookUp.length, 50);
+    if (!window.confirm(t("campaign.hostinger.emailConfirm", { count, credits: count * EMAIL_LOOKUP_CREDITS }))) return;
+    startLookup(async () => {
+      const result = await findCampaignEmails(generationId);
+      if (!result.ok) {
+        toast.error(t(`campaign.hostinger.errors.${result.error.code}`), { description: result.error.detail });
+        return;
+      }
+      toast.success(t("campaign.hostinger.emailsFound", { found: result.found, total: result.checked }));
+      router.refresh();
+    });
+  }
   const merged = mergeCampaign(campaign, current ?? TEMPLATE_FIELDS);
 
   function downloadAll() {
@@ -93,6 +156,67 @@ export function CampaignView({ generationId, title, createdAt, language, campaig
         </div>
       </div>
 
+      <Card className="gap-4 py-5">
+        <CardHeader className="gap-1 px-5">
+          <CardTitle className="flex items-center gap-2 font-bold">
+            <Mail className="size-4 text-primary" />
+            {t("campaign.hostinger.title")}
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">{t("campaign.hostinger.intro")}</p>
+        </CardHeader>
+        <CardContent className="space-y-5 px-5 text-sm">
+          <div className="space-y-2">
+            <p className="font-medium">1. {t("campaign.hostinger.step1")}</p>
+            <p className="text-muted-foreground">
+              {t("campaign.hostinger.withEmail", { count: withEmail.length, total: prospects.length })}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {leadsConfigured && canLookUp.length > 0 && (
+                <Button variant="outline" size="sm" onClick={lookUpEmails} disabled={lookingUp}>
+                  {lookingUp ? <Loader2 className="animate-spin" /> : <AtSign />}
+                  {lookingUp
+                    ? t("campaign.hostinger.findingEmails")
+                    : t("campaign.hostinger.findEmails", { count: Math.min(canLookUp.length, 50) })}
+                </Button>
+              )}
+              <Button size="sm" onClick={exportContacts} disabled={withEmail.length === 0}>
+                <FileDown />
+                {t("campaign.hostinger.exportContacts", { count: withEmail.length })}
+              </Button>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <p className="font-medium">2. {t("campaign.hostinger.step2")}</p>
+            <p className="text-muted-foreground">{t("campaign.hostinger.tagsHelp")}</p>
+            <div className="space-y-2">
+              {hostinger.emails.map((email, i) => (
+                <div key={i} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2">
+                  <span className="min-w-0 flex-1 truncate">
+                    <span className="text-muted-foreground">
+                      {t("campaign.hostinger.emailN", { n: i + 1, day: email.send_on_day })}
+                    </span>{" "}
+                    <span className="font-medium">{email.subject}</span>
+                  </span>
+                  <div className="flex gap-2">
+                    <CopyButton text={email.subject} label={t("campaign.hostinger.copySubject")} />
+                    <CopyButton text={email.body} label={t("campaign.hostinger.copyBody")} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => downloadFile(`${fileBase}-hostinger.txt`, hostingerText(), "text/plain;charset=utf-8")}
+            >
+              <Download />
+              {t("campaign.hostinger.downloadEmails")}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">3. {t("campaign.hostinger.step3")}</p>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
         <Card className="gap-3 py-4">
           <CardHeader className="px-4">
@@ -115,6 +239,10 @@ export function CampaignView({ generationId, title, createdAt, language, campaig
                     <span className="block truncate font-medium">{p.contact_name || p.company_name}</span>
                     <span className="block truncate text-xs text-muted-foreground">
                       {[p.contact_role, p.contact_name && p.company_name].filter(Boolean).join(" · ")}
+                    </span>
+                    <span className="block truncate text-xs">
+                      {contacts[p.id]?.email ||
+                        (contacts[p.id]?.emailChecked ? t("campaign.hostinger.noEmail") : t("campaign.hostinger.emailUnknown"))}
                     </span>
                   </PickButton>
                 </li>

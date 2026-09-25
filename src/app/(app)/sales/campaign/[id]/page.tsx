@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { getReadyContext } from "@/lib/context";
+import { isLeadsConfigured } from "@/lib/leads/explorium";
 import { campaignInputSchema, parseStoredCampaign } from "@/lib/sales/campaign";
-import { loadCampaign, loadOpportunitiesByIds } from "@/lib/sales/queries";
+import { loadCampaign, loadContactInfo, loadOpportunitiesByIds } from "@/lib/sales/queries";
 import { createClient } from "@/lib/supabase/server";
 import { CampaignView } from "./campaign-view";
 
@@ -30,10 +31,15 @@ export default async function CampaignPage({ params }: PageProps<"/sales/campaig
   const found = await load((await params).id);
   if (!found) notFound();
   const { row, input, campaign, supabase } = found;
-  const prospects = await loadOpportunitiesByIds(supabase, row.brand_id, input.opportunity_ids);
+  const [prospects, contacts] = await Promise.all([
+    loadOpportunitiesByIds(supabase, row.brand_id, input.opportunity_ids),
+    loadContactInfo(supabase, input.opportunity_ids),
+  ]);
 
   return (
     <CampaignView
+      contacts={contacts}
+      leadsConfigured={isLeadsConfigured()}
       generationId={row.id}
       title={row.title}
       createdAt={row.created_at}
