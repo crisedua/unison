@@ -326,7 +326,7 @@
     },
     "industryLabel": "Industry",
     "industryPlaceholder": "e.g. Software development, Restaurants",
-    "industryHelp": "Matched to standard industry names, e.g. “contractors” → General contractor.",
+    "industryHelp": "Separate several with commas. Each is matched to standard industry names, e.g. “contractors” → General contractor.",
     "industryMatched": "Industry searched as: {industries}",
     "companySizesLabel": "Company size (employees)",
     "countryLabel": "Company country",

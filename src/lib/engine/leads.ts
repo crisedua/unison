@@ -11,9 +11,11 @@ export const leadFiltersSchema = z.object({
     .array(z.string())
     .describe("0 to 5 job titles as people write them on LinkedIn, e.g. 'Marketing manager'. Empty if the request names none."),
   job_levels: z.array(z.enum(JOB_LEVELS)).describe("Seniority levels the request implies. Empty if any."),
-  industry: z
-    .string()
-    .describe("One short industry phrase, e.g. 'Roofing contractor' or 'Software development'. Empty if any industry."),
+  industries: z
+    .array(z.string())
+    .describe(
+      "0 to 4 industries, one per trade or sector, each a short standard name, e.g. ['Roofing contractor', 'HVAC contractor'] or ['Software development']. Never combine two in one entry. Empty if any industry.",
+    ),
   company_sizes: z.array(z.enum(COMPANY_SIZES)).describe("Employee ranges that fit. Empty if any size."),
   country: z
     .enum([...LEAD_COUNTRIES, "any"])
@@ -28,7 +30,7 @@ const TASK_FROM_TEXT = [
   "- Only set a filter the request states or clearly implies. Fewer filters find more people; don't narrow on guesses.",
   "- Owners of small businesses usually show up as 'owner' or 'founder'; decision makers as 'c-suite', 'owner' or 'founder'.",
   "- 'Small business' means 1-10 and 11-50 employees unless the request says otherwise.",
-  "- Put the trade or sector in industry, not in job_titles.",
+  "- Put trades or sectors in industries (one per entry), not in job_titles.",
   "- If the request says 'my customers', 'my audience' or similar, use the Company Brain's audience.",
 ].join("\n");
 
@@ -64,7 +66,7 @@ export function toLeadSearch(filters: LeadFilters): Omit<LeadSearch, "count"> {
   return {
     jobTitles: [...new Set(filters.job_titles.map((t) => t.trim()).filter(Boolean))].slice(0, 5).join(", ").slice(0, 200),
     jobLevels: [...new Set(filters.job_levels)],
-    industry: filters.industry.trim().slice(0, 120),
+    industry: [...new Set(filters.industries.map((i) => i.trim()).filter(Boolean))].slice(0, 4).join(", ").slice(0, 120),
     companySizes: [...new Set(filters.company_sizes)],
     country: filters.country === "any" ? "" : filters.country,
   };

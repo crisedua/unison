@@ -326,7 +326,7 @@
     },
     "industryLabel": "Sector",
     "industryPlaceholder": "p. ej. Desarrollo de software, Restaurantes",
-    "industryHelp": "Se compara con nombres de sector estándar, p. ej. “contratistas” → General contractor.",
+    "industryHelp": "Separa varios con comas. Cada uno se compara con nombres de sector estándar, p. ej. “contratistas” → General contractor.",
     "industryMatched": "Sector buscado como: {industries}",
     "companySizesLabel": "Tamaño de empresa (empleados)",
     "countryLabel": "País de la empresa",

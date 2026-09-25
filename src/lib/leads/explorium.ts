@@ -169,13 +169,46 @@ const splitList = (value: string) =>
 // cover trades like "General contractor"; NAICS is the fallback.
 const INDUSTRY_FIELDS = ["linkedin_category", "google_category", "naics_category"] as const;
 
-/** Free-text industry → the first taxonomy that recognizes it. */
+/** "Roofing and HVAC contractors, plumbers" → ["Roofing contractors", "HVAC contractors", "plumbers"]. */
+export function splitIndustries(text: string): string[] {
+  const parts = text
+    .split(/\s*(?:,|;|\/|&|\+|\band\b|\by\b|\be\b)\s*/i)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 1);
+  // "Roofing and HVAC contractors": give the shared last word to the parts before it.
+  const last = parts.at(-1)?.split(/\s+/) ?? [];
+  const tail = last.length > 1 ? last.at(-1) : undefined;
+  const expanded = tail ? parts.map((part) => (part.includes(" ") ? part : `${part} ${tail}`)) : parts;
+  return [...new Set(expanded)].slice(0, 5);
+}
+
+/**
+ * Free-text industries → one filter. Each taxonomy is tried in order and the
+ * one that recognizes the most parts wins (different taxonomies can't be
+ * mixed: filters on different fields are combined with AND).
+ */
 async function matchIndustry(text: string) {
-  for (const field of INDUSTRY_FIELDS) {
-    const found = await standardize(field, text, 5);
-    if (found.length) return { field, suggestions: found };
+  // Some standard names contain "and" themselves ("Wellness and Fitness Services"),
+  // so the whole phrase gets the first try.
+  if (!/[,;]/.test(text)) {
+    for (const field of INDUSTRY_FIELDS) {
+      const found = await standardize(field, text, 5);
+      if (found.length) return { field, suggestions: found, matched: 1 };
+    }
   }
-  return null;
+  const parts = splitIndustries(text);
+  if (parts.length === 0) return null;
+  let best: { field: (typeof INDUSTRY_FIELDS)[number]; suggestions: Suggestion[]; matched: number } | null = null;
+  for (const field of INDUSTRY_FIELDS) {
+    const perPart = await Promise.all(parts.map((part) => standardize(field, part, 3)));
+    const matched = perPart.filter((found) => found.length > 0).length;
+    if (matched > (best?.matched ?? 0)) {
+      const unique = new Map(perPart.flat().map((s) => [s.value, s]));
+      best = { field, suggestions: [...unique.values()].slice(0, 10), matched };
+      if (matched === parts.length) break;
+    }
+  }
+  return best;
 }
 
 export type SearchOutcome = { leads: Lead[]; total: number | null; industryMatches: string[] };
