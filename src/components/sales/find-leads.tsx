@@ -1,6 +1,6 @@
 "use client";
 
-import { AtSign, ExternalLink, FileDown, Loader2, Search, TriangleAlert, UserPlus } from "lucide-react";
+import { AtSign, Brain, ExternalLink, FileDown, Loader2, Search, Sparkles, TriangleAlert, UserPlus } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -8,8 +8,11 @@ import {
   addLeadsAsOpportunities,
   lookupLeadEmails,
   searchLeads,
+  suggestLeadFilters,
+  type AiFiltersResult,
   type LeadSearchResult,
 } from "@/app/(app)/sales/actions";
+import { ActionError, AiMissingAlert } from "@/components/action-error";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,6 +20,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import type { Credits } from "@/lib/leads/explorium";
 import {
   COMPANY_SIZES,
@@ -42,6 +46,7 @@ function downloadCsv(filename: string, csv: string) {
 
 type Props = {
   configured: boolean;
+  aiConfigured: boolean;
   credits: Credits | null;
   /** Called with the ids of the opportunities that were just created. */
   onAdded: (ids: string[]) => void;
@@ -60,7 +65,7 @@ function toggle<T>(list: T[], value: T, on: boolean) {
   return on ? [...new Set([...list, value])] : list.filter((v) => v !== value);
 }
 
-export function FindLeads({ configured, credits: initialCredits, onAdded }: Props) {
+export function FindLeads({ configured, aiConfigured, credits: initialCredits, onAdded }: Props) {
   const t = useTranslations("leads");
   const locale = useLocale();
 
@@ -73,6 +78,10 @@ export function FindLeads({ configured, credits: initialCredits, onAdded }: Prop
   const [searching, startSearch] = useTransition();
   const [adding, startAdd] = useTransition();
   const [lookingUp, startLookup] = useTransition();
+  const [aiRequest, setAiRequest] = useState("");
+  const [aiSummary, setAiSummary] = useState("");
+  const [aiError, setAiError] = useState<Extract<AiFiltersResult, { ok: false }>["error"] | null>(null);
+  const [thinking, startThinking] = useTransition();
 
   const countryNames = useMemo(() => new Intl.DisplayNames([locale], { type: "region" }), [locale]);
   const countries = useMemo(
@@ -114,14 +123,37 @@ export function FindLeads({ configured, credits: initialCredits, onAdded }: Prop
     downloadCsv(`prospects-${new Date().toISOString().slice(0, 10)}.csv`, leadsToCsv(rows));
   }
 
+  async function search_(values: LeadSearch) {
+    const next = await searchLeads(values);
+    setResult(next);
+    if (next.ok) {
+      setSelected(new Set(next.leads.map((lead) => lead.id)));
+      if (next.credits) setCredits(next.credits);
+    }
+  }
+
   function runSearch(event: React.FormEvent) {
     event.preventDefault();
-    startSearch(async () => {
-      const next = await searchLeads(search);
-      setResult(next);
-      if (next.ok) {
-        setSelected(new Set(next.leads.map((lead) => lead.id)));
-        if (next.credits) setCredits(next.credits);
+    setAiSummary("");
+    startSearch(() => search_(search));
+  }
+
+  /** AI option: fill the filters from a description (or the Company Brain), then search. */
+  function askAi(request: string) {
+    startThinking(async () => {
+      setAiError(null);
+      try {
+        const outcome = await suggestLeadFilters(request);
+        if (!outcome.ok) {
+          setAiError(outcome.error);
+          return;
+        }
+        const values = { ...outcome.filters, count: search.count };
+        setSearch(values);
+        setAiSummary(outcome.summary);
+        if (configured) startSearch(() => search_(values));
+      } catch {
+        setAiError({ code: "ai_failed" });
       }
     });
   }
@@ -156,6 +188,64 @@ export function FindLeads({ configured, credits: initialCredits, onAdded }: Prop
           <AlertDescription className="text-warning-foreground/90">{t("notConfiguredBody")}</AlertDescription>
         </Alert>
       )}
+
+      <Card className="border-primary/30 bg-accent/40">
+        <CardContent className="space-y-3 pt-6">
+          <div className="flex items-center gap-2">
+            <Sparkles className="size-4 text-primary" />
+            <Label htmlFor="lead-ai" className="font-semibold">
+              {t("aiLabel")}
+            </Label>
+          </div>
+          {!aiConfigured && <AiMissingAlert />}
+          <Textarea
+            id="lead-ai"
+            value={aiRequest}
+            maxLength={1000}
+            placeholder={t("aiPlaceholder")}
+            onChange={(e) => setAiRequest(e.target.value)}
+            onKeyDown={(e) => {
+              if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && aiRequest.trim()) askAi(aiRequest);
+            }}
+            className="min-h-20 bg-card"
+          />
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-muted-foreground">{t("aiHelp")}</p>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => askAi("")}
+                disabled={!aiConfigured || thinking || searching}
+              >
+                <Brain />
+                {t("aiFromBrain")}
+              </Button>
+              <Button
+                type="button"
+                onClick={() => askAi(aiRequest)}
+                disabled={!aiConfigured || thinking || searching || !aiRequest.trim()}
+              >
+                {thinking ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                {thinking ? t("aiThinking") : t("aiFind")}
+              </Button>
+            </div>
+          </div>
+          {aiError &&
+            (aiError.code === "need_filter" ? (
+              <p className="text-sm text-destructive" role="alert">
+                {t("aiNoFilters")}
+              </p>
+            ) : (
+              <ActionError error={aiError} />
+            ))}
+          {aiSummary && !aiError && (
+            <p className="text-sm">
+              <span className="font-medium">{t("aiUnderstood")}</span> {aiSummary}
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardContent className="pt-6">

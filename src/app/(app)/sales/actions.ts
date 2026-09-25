@@ -7,6 +7,7 @@ import { missingFacts } from "@/lib/brain/facts";
 import { loadBrainContext } from "@/lib/brain/queries";
 import { getReadyContext } from "@/lib/context";
 import type { CompileError } from "@/lib/engine/run";
+import { compileLeadFilters, toLeadSearch } from "@/lib/engine/leads";
 import { compileEmailCampaign, compileSalesOutput } from "@/lib/engine/sales";
 import { CONTENT_LANGUAGES } from "@/lib/languages";
 import {
@@ -17,7 +18,14 @@ import {
   type Credits,
   type LeadsErrorCode,
 } from "@/lib/leads/explorium";
-import { EMAIL_LOOKUP_MAX, hasAnyFilter, leadSchema, leadSearchSchema, type Lead } from "@/lib/leads/schema";
+import {
+  EMAIL_LOOKUP_MAX,
+  hasAnyFilter,
+  leadSchema,
+  leadSearchSchema,
+  type Lead,
+  type LeadSearch,
+} from "@/lib/leads/schema";
 import { CAMPAIGN_TYPE, campaignRequirements, MAX_CAMPAIGN_PROSPECTS } from "@/lib/sales/campaign";
 import { loadOpportunitiesByIds, loadOpportunity, loadOpportunityNotes } from "@/lib/sales/queries";
 import {
@@ -209,6 +217,37 @@ export async function searchLeads(raw: z.input<typeof leadSearchSchema>): Promis
   } catch (error) {
     return { ok: false, error: leadsFailure("searchLeads", error) };
   }
+}
+
+export type AiFiltersResult =
+  | { ok: true; filters: Omit<LeadSearch, "count">; summary: string }
+  | { ok: false; error: CompileError | { code: "invalid_input" | "not_ready" } | { code: "need_filter" } };
+
+/**
+ * AI option: turns a plain-language description (or, when empty, the
+ * Company Brain) into search filters. Costs an OpenAI call, no Explorium credits.
+ */
+export async function suggestLeadFilters(request: string): Promise<AiFiltersResult> {
+  const ctx = await getReadyContext();
+  if (!ctx?.activeBrand) return { ok: false, error: { code: "not_ready" } };
+  const text = z.string().max(1000).safeParse(request);
+  if (!text.success) return { ok: false, error: { code: "invalid_input" } };
+
+  const supabase = await createClient();
+  const brain = await loadBrainContext(supabase, ctx.activeBrand.id);
+  if (!brain) return { ok: false, error: { code: "not_ready" } };
+  if (!text.data.trim()) {
+    // Suggesting from the brain needs to know who the brand sells to.
+    const missing = missingFacts(brain.status, ["company", "audience"]);
+    if (missing.length > 0) return { ok: false, error: { code: "missing_facts", missing } };
+  }
+
+  const result = await compileLeadFilters({ brand: brain.brand, documents: brain.documents, request: text.data });
+  if (!result.ok) return result;
+
+  const filters = toLeadSearch(result.output);
+  if (!hasAnyFilter({ ...filters, count: 10 })) return { ok: false, error: { code: "need_filter" } };
+  return { ok: true, filters, summary: result.output.summary.slice(0, 300) };
 }
 
 export type EmailLookupResult =

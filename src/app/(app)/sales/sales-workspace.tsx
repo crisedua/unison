@@ -61,6 +61,7 @@ export function SalesWorkspace({ opportunities, leadsConfigured, credits, status
         <StepHeading step={1} title={t("campaign.stepFind")} help={t("campaign.stepFindHelp")} />
         <FindLeads
           configured={leadsConfigured}
+          aiConfigured={aiConfigured}
           credits={credits}
           onAdded={(newIds) => {
             setSelected(new Set(newIds));
