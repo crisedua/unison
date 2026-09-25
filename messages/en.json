@@ -137,6 +137,26 @@
     "errors": {
       "failed": "Couldn't save. Please try again.",
       "invalid": "Check the fields: each can be up to 4,000 characters."
+    },
+    "visual": {
+      "title": "Visual style",
+      "help": "How generated images look (Reel covers and scenes). Leave empty to let the AI choose.",
+      "colors": {
+        "label": "Brand colors",
+        "placeholder": "e.g. Deep navy #1B2A4A, warm orange #F28C28, off-white"
+      },
+      "look": {
+        "label": "Look and feel",
+        "placeholder": "e.g. Real job sites and contractors at work, natural light, documentary photo style"
+      },
+      "avoid": {
+        "label": "Avoid",
+        "placeholder": "e.g. Stock-photo handshakes, cartoon characters, neon colors"
+      },
+      "save": "Save visual style",
+      "saved": "Visual style saved.",
+      "needsUpdateTitle": "One database update needed",
+      "needsUpdateBody": "Run supabase/migrations/0003_visual_style.sql in Supabase → SQL Editor, then reload this page."
     }
   },
   "documents": {
@@ -711,5 +731,18 @@
     "recap": "Recap",
     "emailDay": "Day {day}",
     "updated": "Updated {date}"
+  },
+  "reelImages": {
+    "title": "Reel images",
+    "help": "A 9:16 cover plus one image per scene ({count} images), in your brand's visual style. Use them as a storyboard or as slides.",
+    "create": "Create images ({count})",
+    "creating": "Creating images…",
+    "redo": "Create again",
+    "wait": "This takes a minute or two. Keep this page open.",
+    "confirmRedo": "Replace the current images with new ones? This costs another set of image generations.",
+    "someFailed": "{count, plural, one {# image couldn't be created. Press “Create again” to retry.} other {# images couldn't be created. Press “Create again” to retry.}}",
+    "cover": "Cover",
+    "scene": "Scene {n}",
+    "download": "Download"
   }
 }

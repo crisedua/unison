@@ -377,8 +377,17 @@ create policy "members manage opportunity notes"
   using (public.unison_is_workspace_member(workspace_id))
   with check (public.unison_is_workspace_member(workspace_id));
 
+-- ===== 0003_visual_style.sql =====
+-- Visual style for generated images (Reel covers and scenes).
+-- Plain text the image prompts use; empty means "let the AI choose".
+
+alter table public.unison_brands
+  add column if not exists visual_colors text not null default '',
+  add column if not exists visual_look text not null default '',
+  add column if not exists visual_avoid text not null default '';
+
 -- Record these as applied so 'npm run db:migrate' skips them later.
 create schema if not exists app_private;
 create table if not exists app_private.unison_migrations (name text primary key, applied_at timestamptz not null default now());
-insert into app_private.unison_migrations (name) values ('0001_init.sql'), ('0002_campaigns_sales_results.sql') on conflict do nothing;
+insert into app_private.unison_migrations (name) values ('0001_init.sql'),('0002_campaigns_sales_results.sql'),('0003_visual_style.sql') on conflict do nothing;
 commit;

@@ -137,6 +137,26 @@
     "errors": {
       "failed": "No se pudo guardar. Inténtalo de nuevo.",
       "invalid": "Revisa los campos: cada uno admite hasta 4.000 caracteres."
+    },
+    "visual": {
+      "title": "Estilo visual",
+      "help": "Cómo se ven las imágenes generadas (portadas y escenas de Reels). Déjalo vacío para que la IA elija.",
+      "colors": {
+        "label": "Colores de marca",
+        "placeholder": "p. ej. Azul marino #1B2A4A, naranja cálido #F28C28, blanco hueso"
+      },
+      "look": {
+        "label": "Estilo",
+        "placeholder": "p. ej. Obras reales y contratistas trabajando, luz natural, estilo fotoperiodístico"
+      },
+      "avoid": {
+        "label": "Evitar",
+        "placeholder": "p. ej. Apretones de manos de banco de imágenes, dibujos animados, colores neón"
+      },
+      "save": "Guardar estilo visual",
+      "saved": "Estilo visual guardado.",
+      "needsUpdateTitle": "Falta una actualización de la base de datos",
+      "needsUpdateBody": "Ejecuta supabase/migrations/0003_visual_style.sql en Supabase → SQL Editor y recarga esta página."
     }
   },
   "documents": {
@@ -711,5 +731,18 @@
     "recap": "Resumen",
     "emailDay": "Día {day}",
     "updated": "Actualizada el {date}"
+  },
+  "reelImages": {
+    "title": "Imágenes del Reel",
+    "help": "Una portada 9:16 y una imagen por escena ({count} imágenes), con el estilo visual de tu marca. Úsalas como guion gráfico o como diapositivas.",
+    "create": "Crear imágenes ({count})",
+    "creating": "Creando imágenes…",
+    "redo": "Crear de nuevo",
+    "wait": "Tarda uno o dos minutos. Mantén esta página abierta.",
+    "confirmRedo": "¿Reemplazar las imágenes actuales por otras nuevas? Cuesta otra tanda de generación de imágenes.",
+    "someFailed": "{count, plural, one {No se pudo crear # imagen. Pulsa «Crear de nuevo» para reintentar.} other {No se pudieron crear # imágenes. Pulsa «Crear de nuevo» para reintentar.}}",
+    "cover": "Portada",
+    "scene": "Escena {n}",
+    "download": "Descargar"
   }
 }

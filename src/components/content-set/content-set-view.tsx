@@ -18,6 +18,7 @@ import type { ContentLanguage } from "@/lib/languages";
 import { AssetBody } from "./asset-body";
 import { ASSET_ICONS } from "./asset-icons";
 import { FactsUsed } from "./facts-used";
+import { ReelImages } from "./reel-images";
 import { assetTitle, assetToMarkdown, downloadText, slugify } from "./to-markdown";
 import { useMarkdownLabels } from "./use-markdown-labels";
 
@@ -117,6 +118,12 @@ function AssetPanel<T extends AssetType>({
       </CardHeader>
       <CardContent className="space-y-5 px-5">
         <AssetBody type={type} asset={asset} />
+        {type === "instagram_reel" && generationId && (
+          <ReelImages
+            generationId={generationId}
+            sceneCount={(asset as AssetOutput["instagram_reel"]).scenes.length}
+          />
+        )}
         <div className="grid grid-cols-1 gap-3 border-t pt-4 sm:grid-cols-2">
           <div className="rounded-lg bg-accent/70 p-3.5">
             <p className="text-xs font-semibold tracking-wide text-accent-foreground uppercase">{t("closingAsk")}</p>

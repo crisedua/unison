@@ -16,9 +16,11 @@ import { siteConfig } from "@/config/site";
 import { BRAIN_FIELD_MAX_LENGTH, FACT_KEYS, factStatus, type BrainField, type FactKey } from "@/lib/brain/facts";
 import { CONTENT_LANGUAGES, isContentLanguage } from "@/lib/languages";
 import type { Brand, BrandDocument } from "@/lib/types";
+import type { VisualStyle } from "@/lib/brain/visual";
 import { cn } from "@/lib/utils";
 import { saveBrain, type BrainFormValues } from "./actions";
 import { DocumentsPanel } from "./documents-panel";
+import { VisualStyleCard } from "./visual-style-card";
 
 const MAIN_FIELDS = ["company", "audience", "problem", "positioning", "offer", "proof"] as const;
 const VOICE_FIELDS = ["voice_tone", "voice_use", "voice_avoid", "voice_example"] as const;
@@ -52,7 +54,15 @@ function toFormValues(brand: Brand): BrainFormValues {
   };
 }
 
-export function BrainEditor({ brand, documents }: { brand: Brand; documents: BrandDocument[] }) {
+export function BrainEditor({
+  brand,
+  documents,
+  visual,
+}: {
+  brand: Brand;
+  documents: BrandDocument[];
+  visual: { available: boolean; style: VisualStyle };
+}) {
   const t = useTranslations("brain");
   const tBrand = useTranslations("brand");
   const tFacts = useTranslations("facts");
@@ -226,6 +236,8 @@ export function BrainEditor({ brand, documents }: { brand: Brand; documents: Bra
               ))}
             </CardContent>
           </Card>
+
+          <VisualStyleCard brandId={brand.id} initial={visual.style} available={visual.available} />
 
           <DocumentsPanel brandId={brand.id} documents={documents} filled={status.notes} />
         </div>

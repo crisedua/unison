@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getReadyContext } from "@/lib/context";
+import { reelFolder, removeMediaFolder } from "@/lib/media/storage";
 import { createClient } from "@/lib/supabase/server";
 
 const idSchema = z.uuid();
@@ -17,6 +18,8 @@ export async function deleteGeneration(id: string): Promise<{ ok: boolean }> {
     console.error("[deleteGeneration]", error.message);
     return { ok: false };
   }
+  // Its generated images go with it.
+  await removeMediaFolder(supabase, reelFolder(ctx.workspaceId, id));
   revalidatePath("/library");
   // Email campaigns are also listed on the Sales page.
   revalidatePath("/sales");

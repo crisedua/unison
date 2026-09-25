@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { BRAIN_FIELD_MAX_LENGTH } from "@/lib/brain/facts";
+import { isMissingColumn, VISUAL_FIELD_MAX_LENGTH } from "@/lib/brain/visual";
 import { ACTIVE_BRAND_COOKIE, getReadyContext } from "@/lib/context";
 import { extractDocumentText, MAX_DOCUMENT_CHARS, MAX_UPLOAD_BYTES } from "@/lib/documents/extract";
 import { CONTENT_LANGUAGES, DEFAULT_CONTENT_LANGUAGE } from "@/lib/languages";
@@ -92,6 +93,34 @@ export async function saveBrain(brandId: string, values: BrainFormValues): Promi
   }
 
   revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+const visualSchema = z.object({
+  colors: z.string().trim().max(VISUAL_FIELD_MAX_LENGTH),
+  look: z.string().trim().max(VISUAL_FIELD_MAX_LENGTH),
+  avoid: z.string().trim().max(VISUAL_FIELD_MAX_LENGTH),
+});
+
+export type VisualSaveResult = { ok: true } | { ok: false; error: "invalid" | "failed" | "needs_update" };
+
+/** Saves the brand's visual style, used by every generated image. */
+export async function saveVisualStyle(brandId: string, values: z.input<typeof visualSchema>): Promise<VisualSaveResult> {
+  if (!(await contextForBrand(brandId))) return { ok: false, error: "failed" };
+  const parsed = visualSchema.safeParse(values);
+  if (!parsed.success) return { ok: false, error: "invalid" };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("unison_brands")
+    .update({ visual_colors: parsed.data.colors, visual_look: parsed.data.look, visual_avoid: parsed.data.avoid })
+    .eq("id", brandId);
+  if (isMissingColumn(error)) return { ok: false, error: "needs_update" };
+  if (error) {
+    console.error("[saveVisualStyle]", error.message);
+    return { ok: false, error: "failed" };
+  }
+  revalidatePath("/brain");
   return { ok: true };
 }
 

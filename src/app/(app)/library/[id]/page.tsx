@@ -12,6 +12,9 @@ import { createClient } from "@/lib/supabase/server";
 import type { GenerationRow } from "@/lib/types";
 import { DeleteSetButton } from "./delete-set-button";
 
+// Creating Reel images can take a minute or two; allow Server Actions on this page up to 5.
+export const maxDuration = 300;
+
 const settingsSchema = z.object({
   length: z.enum(LENGTHS),
   tone: z.enum(TONES),
