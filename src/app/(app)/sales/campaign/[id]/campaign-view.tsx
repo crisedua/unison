@@ -92,13 +92,16 @@ export function CampaignView({
   function lookUpEmails() {
     const count = Math.min(canLookUp.length, 50);
     if (!window.confirm(t("campaign.hostinger.emailConfirm", { count, credits: count * EMAIL_LOOKUP_CREDITS }))) return;
+    // The server looks up only as many people as the credit balance covers.
     startLookup(async () => {
       const result = await findCampaignEmails(generationId);
       if (!result.ok) {
         toast.error(t(`campaign.hostinger.errors.${result.error.code}`), { description: result.error.detail });
         return;
       }
-      toast.success(t("campaign.hostinger.emailsFound", { found: result.found, total: result.checked }));
+      toast.success(t("campaign.hostinger.emailsFound", { found: result.found, total: result.checked }), {
+        description: result.left > 0 ? t("campaign.hostinger.emailsLeft", { count: result.left }) : undefined,
+      });
       router.refresh();
     });
   }

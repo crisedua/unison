@@ -19,6 +19,7 @@ import {
   type LeadsErrorCode,
 } from "@/lib/leads/explorium";
 import {
+  EMAIL_LOOKUP_CREDITS,
   EMAIL_LOOKUP_MAX,
   hasAnyFilter,
   leadSchema,
@@ -283,7 +284,7 @@ export async function lookupLeadEmails(ids: string[]): Promise<EmailLookupResult
 }
 
 export type CampaignEmailsResult =
-  | { ok: true; found: number; checked: number; credits: Credits | null }
+  | { ok: true; found: number; checked: number; left: number; credits: Credits | null }
   | { ok: false; error: { code: LeadsErrorCode | "invalid_input" | "not_found" | "nothing_to_check"; detail?: string } };
 
 /**
@@ -300,10 +301,14 @@ export async function findCampaignEmails(generationId: string): Promise<Campaign
   if (!row || !input?.success) return { ok: false, error: { code: "not_found" } };
 
   const contacts = await loadContactInfo(supabase, input.data.opportunity_ids);
-  const pending = Object.entries(contacts)
-    .filter(([, c]) => !c.email && !c.emailChecked && c.prospectId)
-    .slice(0, EMAIL_LOOKUP_MAX);
-  if (pending.length === 0) return { ok: false, error: { code: "nothing_to_check" } };
+  const all = Object.entries(contacts).filter(([, c]) => !c.email && !c.emailChecked && c.prospectId);
+  if (all.length === 0) return { ok: false, error: { code: "nothing_to_check" } };
+
+  // Only ask for what the balance covers: a request larger than the balance can be refused whole.
+  const before = await getCredits().catch(() => null);
+  const affordable = before ? Math.floor(before.remaining / EMAIL_LOOKUP_CREDITS) : EMAIL_LOOKUP_MAX;
+  if (affordable < 1) return { ok: false, error: { code: "leads_no_credits" } };
+  const pending = all.slice(0, Math.min(EMAIL_LOOKUP_MAX, affordable));
 
   let emails: Map<string, string>;
   try {
@@ -326,7 +331,7 @@ export async function findCampaignEmails(generationId: string): Promise<Campaign
 
   const credits = await getCredits().catch(() => null);
   revalidatePath(`/sales/campaign/${generationId}`);
-  return { ok: true, found: emails.size, checked: pending.length, credits };
+  return { ok: true, found: emails.size, checked: pending.length, left: all.length - pending.length, credits };
 }
 
 const dedupeKey = (company: string, contact: string) => `${company.trim().toLowerCase()}|${contact.trim().toLowerCase()}`;

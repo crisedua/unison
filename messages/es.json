@@ -605,7 +605,7 @@
         "withEmail": "{count} de {total} prospectos tienen email.",
         "findEmails": "Obtener emails faltantes ({count})",
         "findingEmails": "Obteniendo emails…",
-        "emailConfirm": "¿Buscar el email de trabajo de {count, plural, one {# persona} other {# personas}}? Usa unos {credits} créditos de Vibe Prospecting, se encuentre o no el email.",
+        "emailConfirm": "¿Buscar el email de trabajo de hasta {count, plural, one {# persona} other {# personas}}? Cuesta como máximo {credits} créditos de Vibe Prospecting (2 por persona, se encuentre o no) y se detiene cuando se acaba tu saldo.",
         "emailsFound": "Se encontraron {found} de {total} emails.",
         "exportContacts": "Exportar contactos CSV ({count})",
         "noEmail": "Sin email",
@@ -629,7 +629,8 @@
           "leads_rate_limited": "Demasiadas solicitudes seguidas. Espera un minuto e inténtalo de nuevo.",
           "leads_unreachable": "No se pudo conectar con Vibe Prospecting. Revisa tu conexión a internet.",
           "leads_failed": "La búsqueda de emails falló. Inténtalo de nuevo."
-        }
+        },
+        "emailsLeft": "{count, plural, one {# persona aún no tiene email: agrega créditos de Vibe Prospecting y vuelve a pulsar el botón.} other {# personas aún no tienen email: agrega créditos de Vibe Prospecting y vuelve a pulsar el botón.}}"
       }
     },
     "companyLabel": "Empresa",
