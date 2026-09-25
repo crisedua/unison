@@ -183,7 +183,14 @@ function leadsFailure(where: string, error: unknown): { code: LeadsErrorCode; de
 }
 
 export type LeadSearchResult =
-  | { ok: true; leads: Lead[]; total: number | null; creditsUsed: number | null; credits: Credits | null }
+  | {
+      ok: true;
+      leads: Lead[];
+      total: number | null;
+      industryMatches: string[];
+      creditsUsed: number | null;
+      credits: Credits | null;
+    }
   | { ok: false; error: { code: LeadsErrorCode | "invalid_input" | "need_filter" | "not_ready"; detail?: string } };
 
 export async function searchLeads(raw: z.input<typeof leadSearchSchema>): Promise<LeadSearchResult> {
@@ -195,10 +202,10 @@ export async function searchLeads(raw: z.input<typeof leadSearchSchema>): Promis
 
   try {
     const before = await getCredits().catch(() => null);
-    const { leads, total } = await searchProspects(parsed.data);
+    const { leads, total, industryMatches } = await searchProspects(parsed.data);
     const after = await getCredits().catch(() => null);
     const creditsUsed = before && after ? Math.max(0, before.remaining - after.remaining) : null;
-    return { ok: true, leads, total, creditsUsed, credits: after };
+    return { ok: true, leads, total, industryMatches, creditsUsed, credits: after };
   } catch (error) {
     return { ok: false, error: leadsFailure("searchLeads", error) };
   }

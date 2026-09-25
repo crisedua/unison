@@ -318,11 +318,11 @@
     },
     "industryLabel": "Sector",
     "industryPlaceholder": "p. ej. Desarrollo de software, Restaurantes",
+    "industryHelp": "Se compara con nombres de sector estándar, p. ej. “contratistas” → General contractor.",
+    "industryMatched": "Sector buscado como: {industries}",
     "companySizesLabel": "Tamaño de empresa (empleados)",
     "countryLabel": "País de la empresa",
     "anyCountry": "Cualquier país",
-    "keywordsLabel": "Palabras clave del sitio web (opcional)",
-    "keywordsPlaceholder": "p. ej. ecommerce, clínica, agencia",
     "countLabel": "Cuántos",
     "countHelp": "Cada persona encontrada cuesta aproximadamente un crédito.",
     "search": "Buscar",
@@ -355,7 +355,8 @@
       "invalid_input": "Revisa el formulario e inténtalo de nuevo.",
       "need_filter": "Agrega al menos un filtro.",
       "not_ready": "Primero crea una marca.",
-      "add_failed": "No se pudieron agregar. Inténtalo de nuevo."
+      "add_failed": "No se pudieron agregar. Inténtalo de nuevo.",
+      "leads_industry_unknown": "Ningún sector coincide con ese texto. Prueba una palabra más amplia (p. ej. Construcción, Restaurantes, Software)."
     }
   },
   "errors": {

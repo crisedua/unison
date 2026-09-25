@@ -11,6 +11,7 @@ export function isLeadsConfigured() {
 }
 
 export type LeadsErrorCode =
+  | "leads_industry_unknown"
   | "leads_not_configured"
   | "leads_key_invalid"
   | "leads_no_credits"
@@ -113,17 +114,21 @@ export async function getCredits(): Promise<Credits> {
 // Search
 // ---------------------------------------------------------------------------
 
-const suggestionsSchema = z.array(z.object({ value: z.string() }).loose());
+const suggestionsSchema = z.array(z.object({ value: z.string(), label: z.string().nullish() }).loose());
+
+type Suggestion = { value: string; label: string };
+type AutocompleteField = "job_title" | "linkedin_category" | "google_category" | "naics_category";
 
 /** Free text → the standardized values the filters require. Empty when nothing matches. */
-async function standardize(field: "job_title" | "linkedin_category", query: string, max = 3): Promise<string[]> {
+async function standardize(field: AutocompleteField, query: string, max = 3): Promise<Suggestion[]> {
   const query_ = `field=${field}&query=${encodeURIComponent(query)}`;
   for (const version of ["v2", "v1"]) {
     try {
       const raw = await call<unknown>(`/${version}/autocomplete?${query_}`);
       const parsed = suggestionsSchema.safeParse(raw);
       if (!parsed.success) return [];
-      return [...new Set(parsed.data.map((s) => s.value))].slice(0, max);
+      const unique = new Map(parsed.data.map((s) => [s.value, { value: s.value, label: s.label || s.value }]));
+      return [...unique.values()].slice(0, max);
     } catch (error) {
       if (error instanceof LeadsError && error.code !== "leads_failed") throw error;
       console.warn("[explorium autocomplete]", (error as Error).message);
@@ -159,28 +164,48 @@ const splitList = (value: string) =>
     .map((s) => s.trim())
     .filter(Boolean);
 
-export async function searchProspects(search: LeadSearch): Promise<{ leads: Lead[]; total: number | null }> {
+// Industry taxonomies a people search can filter on, tried in this order.
+// LinkedIn's names are broad ("Construction"); Google's business categories
+// cover trades like "General contractor"; NAICS is the fallback.
+const INDUSTRY_FIELDS = ["linkedin_category", "google_category", "naics_category"] as const;
+
+/** Free-text industry → the first taxonomy that recognizes it. */
+async function matchIndustry(text: string) {
+  for (const field of INDUSTRY_FIELDS) {
+    const found = await standardize(field, text, 5);
+    if (found.length) return { field, suggestions: found };
+  }
+  return null;
+}
+
+export type SearchOutcome = { leads: Lead[]; total: number | null; industryMatches: string[] };
+
+export async function searchProspects(search: LeadSearch): Promise<SearchOutcome> {
   const filters: Record<string, unknown> = {};
 
   const titles = splitList(search.jobTitles);
   if (titles.length) {
     const values = (await Promise.all(titles.map((title) => standardize("job_title", title)))).flat();
-    filters.job_title = { values: values.length ? [...new Set(values)] : titles, include_related_job_titles: true };
+    filters.job_title = {
+      values: values.length ? [...new Set(values.map((s) => s.value))] : titles,
+      include_related_job_titles: true,
+    };
   }
   if (search.jobLevels.length) filters.job_level = { values: search.jobLevels };
 
-  const keywords = splitList(search.keywords);
+  let industryMatches: string[] = [];
   if (search.industry) {
-    const categories = await standardize("linkedin_category", search.industry);
-    if (categories.length) filters.linkedin_category = { values: categories };
-    else keywords.push(search.industry);
+    const match = await matchIndustry(search.industry);
+    if (!match) throw new LeadsError("leads_industry_unknown", `No industry matches “${search.industry}”.`);
+    filters[match.field] = { values: match.suggestions.map((s) => s.value) };
+    industryMatches = match.suggestions.map((s) => s.label);
   }
-  if (keywords.length) filters.website_keywords = { values: keywords };
   if (search.companySizes.length) filters.company_size = { values: search.companySizes };
   if (search.country) filters.company_country_code = { values: [search.country] };
 
   const raw = await callWithV1Fallback<unknown>(
-    { path: "/v2/prospects", body: { mode: "full", page: 1, page_size: search.count, filters } },
+    // v2 pages with a cursor and rejects `page`; the first page needs neither.
+    { path: "/v2/prospects", body: { mode: "full", page_size: search.count, filters } },
     // v1 also requires `size`, the total number of records the query may return.
     { path: "/v1/prospects", body: { mode: "full", size: search.count, page: 1, page_size: search.count, filters } },
   );
@@ -200,7 +225,7 @@ export async function searchProspects(search: LeadSearch): Promise<{ leads: Lead
       email: "",
     };
   });
-  return { leads, total: parsed.data.total_results ?? null };
+  return { leads, total: parsed.data.total_results ?? null, industryMatches };
 }
 
 // ---------------------------------------------------------------------------

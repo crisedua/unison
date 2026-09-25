@@ -53,7 +53,6 @@ const EMPTY: LeadSearch = {
   industry: "",
   companySizes: [],
   country: "",
-  keywords: "",
   count: 25,
 };
 
@@ -182,6 +181,7 @@ export function FindLeads({ configured, credits: initialCredits, onAdded }: Prop
                   placeholder={t("industryPlaceholder")}
                   onChange={(e) => setSearch({ ...search, industry: e.target.value })}
                 />
+                <p className="text-xs text-muted-foreground">{t("industryHelp")}</p>
               </div>
             </div>
 
@@ -219,7 +219,7 @@ export function FindLeads({ configured, credits: initialCredits, onAdded }: Prop
               </div>
             </fieldset>
 
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="lead-country">{t("countryLabel")}</Label>
                 <Select
@@ -240,16 +240,6 @@ export function FindLeads({ configured, credits: initialCredits, onAdded }: Prop
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="lead-keywords">{t("keywordsLabel")}</Label>
-                <Input
-                  id="lead-keywords"
-                  value={search.keywords}
-                  maxLength={200}
-                  placeholder={t("keywordsPlaceholder")}
-                  onChange={(e) => setSearch({ ...search, keywords: e.target.value })}
-                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="lead-count">{t("countLabel")}</Label>
@@ -298,6 +288,12 @@ export function FindLeads({ configured, credits: initialCredits, onAdded }: Prop
             </AlertDescription>
           )}
         </Alert>
+      )}
+
+      {result?.ok && result.industryMatches.length > 0 && (
+        <p className="text-sm text-muted-foreground">
+          {t("industryMatched", { industries: result.industryMatches.join(", ") })}
+        </p>
       )}
 
       {result?.ok && leads.length === 0 && (

@@ -20,7 +20,6 @@ export const leadSearchSchema = z.object({
   industry: z.string().trim().max(120),
   companySizes: z.array(z.enum(COMPANY_SIZES)).max(COMPANY_SIZES.length),
   country: z.enum(LEAD_COUNTRIES).or(z.literal("")),
-  keywords: z.string().trim().max(200),
   count: z.union([z.literal(10), z.literal(25), z.literal(50)]),
 });
 export type LeadSearch = z.infer<typeof leadSearchSchema>;
@@ -31,8 +30,7 @@ export function hasAnyFilter(search: LeadSearch) {
       search.jobLevels.length ||
       search.industry ||
       search.companySizes.length ||
-      search.country ||
-      search.keywords,
+      search.country,
   );
 }
 

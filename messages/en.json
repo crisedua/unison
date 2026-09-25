@@ -318,11 +318,11 @@
     },
     "industryLabel": "Industry",
     "industryPlaceholder": "e.g. Software development, Restaurants",
+    "industryHelp": "Matched to standard industry names, e.g. “contractors” → General contractor.",
+    "industryMatched": "Industry searched as: {industries}",
     "companySizesLabel": "Company size (employees)",
     "countryLabel": "Company country",
     "anyCountry": "Any country",
-    "keywordsLabel": "Website keywords (optional)",
-    "keywordsPlaceholder": "e.g. ecommerce, clinic, agency",
     "countLabel": "How many",
     "countHelp": "Each person found costs about one credit.",
     "search": "Search",
@@ -355,7 +355,8 @@
       "invalid_input": "Check the form and try again.",
       "need_filter": "Add at least one filter.",
       "not_ready": "Create a brand first.",
-      "add_failed": "Couldn't add them. Please try again."
+      "add_failed": "Couldn't add them. Please try again.",
+      "leads_industry_unknown": "No industry matches that text. Try a broader word (e.g. Construction, Restaurants, Software)."
     }
   },
   "errors": {
