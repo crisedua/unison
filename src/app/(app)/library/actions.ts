@@ -18,6 +18,8 @@ export async function deleteGeneration(id: string): Promise<{ ok: boolean }> {
     return { ok: false };
   }
   revalidatePath("/library");
+  // Email campaigns are also listed on the Sales page.
+  revalidatePath("/sales");
   return { ok: true };
 }
 

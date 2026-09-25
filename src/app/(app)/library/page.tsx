@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { ASSET_ICONS } from "@/components/content-set/asset-icons";
+import { DeleteItemButton } from "@/components/delete-item-button";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -89,10 +90,10 @@ export default async function LibraryPage({ searchParams }: PageProps<"/library"
               {sets.map((set) => {
                 const assets = set.studio === "content" ? storedAssets.parse(set.input).assets : [];
                 return (
-                  <li key={set.id}>
+                  <li key={set.id} className="relative">
                     <Link
                       href={generationHref(set)}
-                      className="block h-full rounded-xl bg-card p-4 ring-1 ring-foreground/10 transition-shadow hover:shadow-md hover:ring-primary/40"
+                      className="block h-full rounded-xl bg-card p-4 pr-11 ring-1 ring-foreground/10 transition-shadow hover:shadow-md hover:ring-primary/40"
                     >
                       <p className="font-heading font-bold">{set.title}</p>
                       <p className="mt-1 text-xs text-muted-foreground">
@@ -114,6 +115,7 @@ export default async function LibraryPage({ searchParams }: PageProps<"/library"
                         })}
                       </div>
                     </Link>
+                    <DeleteItemButton kind="generation" id={set.id} title={set.title} className="absolute top-2.5 right-2.5" />
                   </li>
                 );
               })}
@@ -129,17 +131,15 @@ export default async function LibraryPage({ searchParams }: PageProps<"/library"
               {drafts.map((draft) => {
                 const Icon = isAsset(draft.asset_type) ? ASSET_ICONS[draft.asset_type] : NotebookPen;
                 return (
-                  <li key={draft.id}>
-                    <Link
-                      href={`/drafts/${draft.id}`}
-                      className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/60"
-                    >
+                  <li key={draft.id} className="flex items-center gap-1 pr-2 transition-colors hover:bg-muted/60">
+                    <Link href={`/drafts/${draft.id}`} className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3">
                       <Icon className="size-4 shrink-0 text-primary" />
                       <span className="min-w-0 flex-1 truncate text-sm font-medium">{draft.title}</span>
                       <span className="hidden text-xs text-muted-foreground sm:inline">
                         {isAsset(draft.asset_type) && tStudio(`assets.${draft.asset_type}`)} · {date(draft.updated_at)}
                       </span>
                     </Link>
+                    <DeleteItemButton kind="draft" id={draft.id} title={draft.title} />
                   </li>
                 );
               })}

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { ActionError, AiMissingAlert, MissingFactsNotice } from "@/components/action-error";
+import { DeleteItemButton } from "@/components/delete-item-button";
 import { FindLeads } from "@/components/sales/find-leads";
 import { StageBadge } from "@/components/sales/stage-badge";
 import { Button } from "@/components/ui/button";
@@ -169,11 +170,8 @@ function CampaignRow({ campaign }: { campaign: CampaignSummary }) {
   const t = useTranslations("sales");
   const format = useFormatter();
   return (
-    <li>
-      <Link
-        href={`/sales/campaign/${campaign.id}`}
-        className="flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-muted/60"
-      >
+    <li className="flex items-center gap-1 pr-2 transition-colors hover:bg-muted/60">
+      <Link href={`/sales/campaign/${campaign.id}`} className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3.5">
         <Mails className="size-4 shrink-0 text-primary" />
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium">{campaign.title}</p>
@@ -184,6 +182,7 @@ function CampaignRow({ campaign }: { campaign: CampaignSummary }) {
         </div>
         <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
       </Link>
+      <DeleteItemButton kind="generation" id={campaign.id} title={campaign.title} />
     </li>
   );
 }

@@ -281,7 +281,10 @@
       "campaign": "Brief de campaña",
       "sales": "Ventas",
       "results": "Análisis"
-    }
+    },
+    "confirmDeleteItem": "¿Eliminar «{title}»? No se puede deshacer. Los borradores creados a partir de él se conservan.",
+    "confirmDeleteDraft": "¿Eliminar el borrador «{title}»? No se puede deshacer.",
+    "draftDeleted": "Borrador eliminado."
   },
   "drafts": {
     "titleLabel": "Título",
@@ -631,6 +634,17 @@
           "leads_failed": "La búsqueda de emails falló. Inténtalo de nuevo."
         },
         "emailsLeft": "{count, plural, one {# persona aún no tiene email: agrega créditos de Vibe Prospecting y vuelve a pulsar el botón.} other {# personas aún no tienen email: agrega créditos de Vibe Prospecting y vuelve a pulsar el botón.}}"
+      },
+      "edit": {
+        "button": "Editar emails",
+        "title": "Editar la campaña",
+        "help": "Los cambios se aplican a la versión de cada prospecto y a la exportación para Hostinger. Mantén '{{first_name}}' y '{{company}}' donde van los datos de cada persona.",
+        "nameLabel": "Nombre de la campaña",
+        "emailN": "Email {n}",
+        "sendOnDay": "Enviar el día",
+        "subject": "Asunto",
+        "body": "Cuerpo",
+        "saved": "Campaña guardada."
       }
     },
     "companyLabel": "Empresa",

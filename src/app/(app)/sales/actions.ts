@@ -32,6 +32,7 @@ import {
   campaignInputSchema,
   campaignRequirements,
   MAX_CAMPAIGN_PROSPECTS,
+  parseStoredCampaign,
 } from "@/lib/sales/campaign";
 import { EMAIL_NOT_FOUND_NOTE } from "@/lib/sales/export";
 import {
@@ -281,6 +282,51 @@ export async function lookupLeadEmails(ids: string[]): Promise<EmailLookupResult
   } catch (error) {
     return { ok: false, error: leadsFailure("lookupLeadEmails", error) };
   }
+}
+
+const campaignEditSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  emails: z
+    .array(
+      z.object({
+        send_on_day: z.number().int().min(0).max(60),
+        subject: z.string().trim().min(1).max(300),
+        body: z.string().trim().min(1).max(10_000),
+      }),
+    )
+    .min(1)
+    .max(10),
+});
+
+/** Saves hand edits to a campaign's title and emails. Every prospect's version is filled in from these. */
+export async function updateEmailCampaign(
+  generationId: string,
+  raw: z.input<typeof campaignEditSchema>,
+): Promise<{ ok: boolean }> {
+  const ctx = await getReadyContext();
+  const parsed = campaignEditSchema.safeParse(raw);
+  if (!ctx || !parsed.success || !idSchema.safeParse(generationId).success) return { ok: false };
+  const supabase = await createClient();
+  const row = await loadCampaign(supabase, generationId);
+  const input = row ? campaignInputSchema.safeParse(row.input) : null;
+  const current = row ? parseStoredCampaign(row.output) : null;
+  if (!row || !input?.success || !current) return { ok: false };
+
+  const output = { ...current, title: parsed.data.title, emails: parsed.data.emails };
+  const { error } = await supabase
+    .from("unison_generations")
+    .update({ title: parsed.data.title, output })
+    .eq("id", generationId)
+    .eq("workspace_id", ctx.workspaceId);
+  if (error) {
+    console.error("[updateEmailCampaign]", error.message);
+    return { ok: false };
+  }
+  revalidatePath(`/sales/campaign/${generationId}`);
+  revalidatePath("/sales");
+  revalidatePath("/library");
+  for (const id of input.data.opportunity_ids) revalidatePath(`/sales/${id}`);
+  return { ok: true };
 }
 
 export type CampaignEmailsResult =

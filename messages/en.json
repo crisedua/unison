@@ -281,7 +281,10 @@
       "campaign": "Campaign brief",
       "sales": "Sales",
       "results": "Read-out"
-    }
+    },
+    "confirmDeleteItem": "Delete “{title}”? This can't be undone. Drafts made from it are kept.",
+    "confirmDeleteDraft": "Delete the draft “{title}”? This can't be undone.",
+    "draftDeleted": "Draft deleted."
   },
   "drafts": {
     "titleLabel": "Title",
@@ -631,6 +634,17 @@
           "leads_failed": "The email lookup failed. Please try again."
         },
         "emailsLeft": "{count, plural, one {# person still needs an email: add Vibe Prospecting credits and press the button again.} other {# people still need an email: add Vibe Prospecting credits and press the button again.}}"
+      },
+      "edit": {
+        "button": "Edit emails",
+        "title": "Edit the campaign",
+        "help": "Changes apply to every prospect's version and to the Hostinger export. Keep '{{first_name}}' and '{{company}}' where each person's details should go.",
+        "nameLabel": "Campaign name",
+        "emailN": "Email {n}",
+        "sendOnDay": "Send on day",
+        "subject": "Subject",
+        "body": "Body",
+        "saved": "Campaign saved."
       }
     },
     "companyLabel": "Company",
