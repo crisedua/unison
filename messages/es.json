@@ -344,6 +344,7 @@
     "emailsFound": "Se encontraron {found} de {total} emails.",
     "noEmail": "Sin email",
     "exportCsv": "Exportar CSV",
+    "errorDetail": "Lo que respondió Explorium:",
     "errors": {
       "leads_not_configured": "Vibe Prospecting todavía no está conectado. Agrega EXPLORIUM_API_KEY y reinicia la app.",
       "leads_key_invalid": "Explorium rechazó la clave. Revisa EXPLORIUM_API_KEY.",

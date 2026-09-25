@@ -21,7 +21,8 @@ export type LeadsErrorCode =
 export class LeadsError extends Error {
   constructor(
     readonly code: LeadsErrorCode,
-    detail?: string,
+    /** What Explorium answered (method, path, status, body). Never contains the key. */
+    readonly detail?: string,
     /** HTTP status Explorium answered with, when it answered. */
     readonly status?: number,
   ) {
@@ -73,7 +74,19 @@ async function callWithV1Fallback<T>(
     const status = error instanceof LeadsError ? error.status : undefined;
     if (status === undefined || (status < 500 && status !== 404 && status !== 405)) throw error;
     console.warn("[explorium] v2 failed, retrying on v1:", (error as Error).message);
-    return call<T>(v1.path, { method: "POST", body: v1.body });
+    try {
+      return await call<T>(v1.path, { method: "POST", body: v1.body });
+    } catch (v1Error) {
+      // Report both answers so the cause is visible in one place.
+      if (v1Error instanceof LeadsError) {
+        throw new LeadsError(
+          v1Error.code,
+          `${(error as LeadsError).detail} | then ${v1Error.detail ?? v1Error.message}`,
+          v1Error.status,
+        );
+      }
+      throw v1Error;
+    }
   }
 }
 

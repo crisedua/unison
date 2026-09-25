@@ -96,7 +96,7 @@ export function FindLeads({ configured, credits: initialCredits, onAdded }: Prop
     startLookup(async () => {
       const outcome = await lookupLeadEmails(ids);
       if (!outcome.ok) {
-        toast.error(t(`errors.${outcome.error.code}`));
+        toast.error(t(`errors.${outcome.error.code}`), { description: outcome.error.detail });
         return;
       }
       setChecked((prev) => new Set([...prev, ...ids]));
@@ -291,6 +291,12 @@ export function FindLeads({ configured, credits: initialCredits, onAdded }: Prop
         <Alert variant="destructive" className="py-3">
           <TriangleAlert />
           <AlertTitle>{t(`errors.${result.error.code}`)}</AlertTitle>
+          {result.error.detail && (
+            <AlertDescription>
+              <p className="text-xs">{t("errorDetail")}</p>
+              <code className="mt-1 block text-xs break-all whitespace-pre-wrap">{result.error.detail}</code>
+            </AlertDescription>
+          )}
         </Alert>
       )}
 

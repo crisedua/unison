@@ -172,9 +172,19 @@ export async function deleteOpportunityNote(opportunityId: string, noteId: strin
 // Find leads (Vibe Prospecting / Explorium)
 // ---------------------------------------------------------------------------
 
+/** Error for the page: the code to translate, plus Explorium's own answer so failures can be diagnosed. */
+function leadsFailure(where: string, error: unknown): { code: LeadsErrorCode; detail?: string } {
+  if (error instanceof LeadsError) {
+    if (error.code !== "leads_not_configured") console.error(`[${where}]`, error.message);
+    return { code: error.code, detail: error.detail?.slice(0, 600) };
+  }
+  console.error(`[${where}]`, error);
+  return { code: "leads_failed", detail: error instanceof Error ? error.message.slice(0, 600) : undefined };
+}
+
 export type LeadSearchResult =
   | { ok: true; leads: Lead[]; total: number | null; creditsUsed: number | null; credits: Credits | null }
-  | { ok: false; error: { code: LeadsErrorCode | "invalid_input" | "need_filter" | "not_ready" } };
+  | { ok: false; error: { code: LeadsErrorCode | "invalid_input" | "need_filter" | "not_ready"; detail?: string } };
 
 export async function searchLeads(raw: z.input<typeof leadSearchSchema>): Promise<LeadSearchResult> {
   const ctx = await getReadyContext();
@@ -190,18 +200,13 @@ export async function searchLeads(raw: z.input<typeof leadSearchSchema>): Promis
     const creditsUsed = before && after ? Math.max(0, before.remaining - after.remaining) : null;
     return { ok: true, leads, total, creditsUsed, credits: after };
   } catch (error) {
-    if (error instanceof LeadsError) {
-      if (error.code !== "leads_not_configured") console.error("[searchLeads]", error.message);
-      return { ok: false, error: { code: error.code } };
-    }
-    console.error("[searchLeads]", error);
-    return { ok: false, error: { code: "leads_failed" } };
+    return { ok: false, error: leadsFailure("searchLeads", error) };
   }
 }
 
 export type EmailLookupResult =
   | { ok: true; emails: Record<string, string>; credits: Credits | null }
-  | { ok: false; error: { code: LeadsErrorCode | "invalid_input" | "not_ready" } };
+  | { ok: false; error: { code: LeadsErrorCode | "invalid_input" | "not_ready"; detail?: string } };
 
 /** Looks up work emails for the ticked people. Costs credits per person, found or not. */
 export async function lookupLeadEmails(ids: string[]): Promise<EmailLookupResult> {
@@ -215,12 +220,7 @@ export async function lookupLeadEmails(ids: string[]): Promise<EmailLookupResult
     const credits = await getCredits().catch(() => null);
     return { ok: true, emails: Object.fromEntries(emails), credits };
   } catch (error) {
-    if (error instanceof LeadsError) {
-      if (error.code !== "leads_not_configured") console.error("[lookupLeadEmails]", error.message);
-      return { ok: false, error: { code: error.code } };
-    }
-    console.error("[lookupLeadEmails]", error);
-    return { ok: false, error: { code: "leads_failed" } };
+    return { ok: false, error: leadsFailure("lookupLeadEmails", error) };
   }
 }
 
