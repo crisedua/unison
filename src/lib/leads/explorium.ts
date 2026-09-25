@@ -127,8 +127,10 @@ async function standardize(field: AutocompleteField, query: string, max = 3): Pr
       const raw = await call<unknown>(`/${version}/autocomplete?${query_}`);
       const parsed = suggestionsSchema.safeParse(raw);
       if (!parsed.success) return [];
-      const unique = new Map(parsed.data.map((s) => [s.value, { value: s.value, label: s.label || s.value }]));
-      return [...unique.values()].slice(0, max);
+      const unique = [...new Map(parsed.data.map((s) => [s.value, { value: s.value, label: s.label || s.value }])).values()];
+      // Google categories come with regional variants ("Roofing contractor in Austria"); keep the plain ones.
+      const plain = unique.filter((s) => !/\sin\s\p{Lu}/u.test(s.label));
+      return (plain.length ? plain : unique).slice(0, max);
     } catch (error) {
       if (error instanceof LeadsError && error.code !== "leads_failed") throw error;
       console.warn("[explorium autocomplete]", (error as Error).message);
@@ -157,6 +159,12 @@ const prospectSchema = z
 const searchResponseSchema = z
   .object({ data: z.array(prospectSchema).default([]), total_results: z.number().optional() })
   .loose();
+
+// Explorium sends places in lowercase ("atlanta, georgia, united states").
+const titleCase = (value: string) =>
+  value.replace(/\p{L}[\p{L}'’]*/gu, (word, offset: number) =>
+    offset > 0 && ["and", "of", "the", "de", "del", "la", "y"].includes(word) ? word : word[0].toUpperCase() + word.slice(1),
+  );
 
 const splitList = (value: string) =>
   value
@@ -254,7 +262,7 @@ export async function searchProspects(search: LeadSearch): Promise<SearchOutcome
       company: (p.company_name ?? "").slice(0, 200),
       website: (p.company_website ?? "").slice(0, 300),
       linkedin: (p.linkedin ?? "").slice(0, 300),
-      location: [p.city, p.region_name, p.country_name].filter(Boolean).join(", ").slice(0, 200),
+      location: titleCase([p.city, p.region_name, p.country_name].filter(Boolean).join(", ")).slice(0, 200),
       email: "",
     };
   });
